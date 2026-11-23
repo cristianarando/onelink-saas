@@ -1,4 +1,4 @@
-import React, { Suspense } from "react";
+import React, { Suspense, cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -44,6 +44,7 @@ interface ProfileData {
     id: string;
     title: string;
     url: string | null;
+    content?: string | null;
     type: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE";
     position: number;
     thumbnailUrl: string | null;
@@ -123,7 +124,7 @@ const CRISTIAN_ARANDO_DEMO: ProfileData = {
   ],
 };
 
-async function getProfile(username: string): Promise<ProfileData | null> {
+const getProfile = cache(async (username: string): Promise<ProfileData | null> => {
   const cleanUsername = username.replace(/^%40|^@/, "").toLowerCase();
   const apiUrl = getApiBaseUrl();
 
@@ -167,7 +168,7 @@ async function getProfile(username: string): Promise<ProfileData | null> {
   }
 
   return null;
-}
+});
 
 export async function generateMetadata({
   params,
@@ -433,6 +434,7 @@ async function ProfileContent({
                 id={link.id}
                 title={link.title}
                 url={link.url}
+                content={link.content}
                 type={link.type}
                 thumbnailUrl={link.thumbnailUrl}
                 profileId={profile.id}

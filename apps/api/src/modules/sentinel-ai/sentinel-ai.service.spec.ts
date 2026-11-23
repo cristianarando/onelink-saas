@@ -282,6 +282,8 @@ describe('SentinelAiService (Zero-Token AI Threat Detection)', () => {
         where: { profileId: 'prof-id' },
         data: { isActive: false },
       });
+      expect(redisService.sadd).toHaveBeenCalledWith('auth:banned_users', 'user-uuid');
+      expect(redisService.del).toHaveBeenCalledWith('profile:spammer');
     });
 
     it('should remove domain from blocklist in DB and Redis', async () => {

@@ -106,7 +106,7 @@ const DEFAULT_BILLING_EVENTS: BillingEventItem[] = [
     id: 'evt_3P88z24wQc77ooPz',
     type: 'charge.refunded',
     tier: 'Pro Monthly ($2.00)',
-    amount: '$9.00',
+    amount: '$2.00',
     handle: '@accidental_sub',
     timestamp: '1 hr ago',
     status: 'Refunded',
@@ -114,8 +114,8 @@ const DEFAULT_BILLING_EVENTS: BillingEventItem[] = [
   {
     id: 'evt_3P87m55kOp11zzQw',
     type: 'invoice.payment_succeeded',
-    tier: 'Creator Pro ($9.00)',
-    amount: '$9.00',
+    tier: 'Creator Pro ($2.00)',
+    amount: '$2.00',
     handle: '@design_lead',
     timestamp: '3 hrs ago',
     status: 'Paid',
@@ -696,11 +696,13 @@ export class BillingService {
 
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object as Stripe.Invoice;
+        const paidCents = invoice.amount_paid || 200;
+        const tierLabel = paidCents >= 500 ? 'Enterprise Studio ($5.00)' : 'Creator Pro ($2.00)';
         await this.recordEvent({
           id: event.id,
           type: event.type,
-          tier: 'Creator Pro ($9.00)',
-          amount: `$${((invoice.amount_paid || 900) / 100).toFixed(2)}`,
+          tier: tierLabel,
+          amount: `$${(paidCents / 100).toFixed(2)}`,
           handle: '@creator',
           timestamp: 'Just now',
           status: 'Paid',
