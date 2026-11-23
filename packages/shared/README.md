@@ -6,16 +6,19 @@
 
 ## ⚡ Exports
 
-- **Schemas (`zod`)**:
-  - `RegisterSchema`: Email, password (min 8 chars), username (3-30 chars, alphanumeric + `_` `-`).
-  - `LoginSchema`: Email, password.
-  - `CreateLinkSchema`: Title, destination URL, link type (`LINK`, `HEADER`, `DIVIDER`), position.
-  - `UpdateProfileSchema`: Title, bio (max 500 chars), avatarUrl, themeId, isPublished.
-  - `TrackClickSchema`: Click beacon payload (linkId, profileId, referrer).
-- **Constants**:
-  - `RESERVED_USERNAMES`: Blocklist of reserved slugs (`admin`, `api`, `dashboard`, `auth`, `login`, `register`, `terms`, etc.) to prevent route collisions.
-- **Inferred Types**:
-  - `RegisterInput`, `LoginInput`, `CreateLinkInput`, `UpdateProfileInput`, `TrackClickInput`.
+- **Auth, Profile & Link Schemas (`zod`)**:
+  - `RegisterSchema`, `LoginSchema`, `UsernameFieldSchema`, `UpdateProfileSchema`, `UpdateCustomThemeSchema`.
+  - `CreateLinkSchema`, `UpdateLinkSchema`, `UnlockLinkSchema`, `ReorderLinksSchema` supporting `LinkTypeEnum` (`LINK`, `HEADER`, `DIVIDER`, `DONATION`, `NOTE`), scheduling (`startsAt`/`expiresAt`), PIN protection, and 18+ age restriction.
+  - `CreateSocialLinkSchema`, `UpdateSocialLinkSchema`, `ReorderSocialLinksSchema`.
+  - `TrackClickSchema`, `TrackPageViewSchema`.
+- **Sentinel AI & Moderation Schemas**:
+  - `RoleEnum`, `ThreatTypeEnum`, `SecurityFlagStatusEnum`, `EvaluateUrlSchema`, `UpdateThreatStatusSchema`, `SuspendUserSchema`, `UpdateUserRoleSchema`, `CreateBlocklistSchema`.
+- **Billing & Multi-Tenant Workspace Schemas**:
+  - `CreateCheckoutSessionSchema`, `UpdatePlanSchema`, `InviteCollaboratorSchema`, `UpdateTeamMemberRoleSchema`.
+- **Canonical Constants & Helpers**:
+  - `CANONICAL_PLANS`: Single source of truth for `FREE` ($0), `PRO` ($2/mo, $20/yr), and `ENTERPRISE` ($5/mo, $50/yr) limits and feature flags.
+  - `CANONICAL_THEME_PRESETS`: 8 calibrated WCAG AAA theme configurations.
+  - `RESERVED_USERNAMES` & `isValidWebUrl()`: Route collision protection and domain-level URL validation.
 
 ---
 

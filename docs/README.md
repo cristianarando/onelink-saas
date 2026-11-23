@@ -52,21 +52,21 @@ docs/
 
 | Category | Document Link | Description & Key Artifacts | Status |
 |---|---|---|---|
-| **Tracking & Status** | [progress-tracker.md](file:///c:/Users/crisa/Workspace/system-design/url-shortener/docs/progress-tracker.md) | Audit of all completed setups, verification logs, and SDLC checklist | ✅ Active Track |
-| **Git Flow & Releases** | [git-flow.md](file:///c:/Users/crisa/Workspace/system-design/url-shortener/docs/git-flow.md) | Branching strategy, PR policies, SemVer tagging, and Conventional Commits | ✅ Active Standard |
-| **Demo Accounts** | [demo-accounts.md](file:///c:/Users/crisa/Workspace/system-design/url-shortener/docs/demo-accounts.md) | Preconfigured seed accounts, role hierarchy, and login guide | ✅ Active |
-| **Requirements** | [prd.md](file:///c:/Users/crisa/Workspace/system-design/url-shortener/docs/prd.md) | 4 Personas, Gherkin user stories, feature prioritization | ✅ Approved |
-| **Specifications** | [srs.md](file:///c:/Users/crisa/Workspace/system-design/url-shortener/docs/srs.md) | IEEE 830 functional & non-functional requirements, SLA matrix | ✅ Approved |
-| **Data Design** | [architecture/database-design.md](file:///c:/Users/crisa/Workspace/system-design/url-shortener/docs/architecture/database-design.md) | Mermaid ERD, Data Dictionary, TimescaleDB Hypertables, Indexes | ✅ Approved |
-| **System Design** | [architecture/system-architecture.md](file:///c:/Users/crisa/Workspace/system-design/url-shortener/docs/architecture/system-architecture.md) | C4 Context, Container, Component diagrams, Cache topologies | ✅ Approved |
-| **Sequence Flows** | [architecture/sequence-flows.md](file:///c:/Users/crisa/Workspace/system-design/url-shortener/docs/architecture/sequence-flows.md) | Hot path profile read, Beacon click tracking, Cache eviction | ✅ Approved |
-| **User Flows & Sitemap** | [ui-ux/user-flows-and-sitemap.md](file:///c:/Users/crisa/Workspace/system-design/url-shortener/docs/ui-ux/user-flows-and-sitemap.md) | Visitor vs Creator flows, complete sitemap, 5-state UI matrix | ✅ Approved |
-| **Design System** | [ui-ux/DESIGN.md](file:///c:/Users/crisa/Workspace/system-design/url-shortener/docs/ui-ux/DESIGN.md) | Carbon Architecture tokens (Zinc 950 `#09090b`, Geist + JetBrains Mono) | ✅ Approved |
-| **UI/UX & Wireframes**| [ui-ux/wireframes-and-mockups.md](file:///c:/Users/crisa/Workspace/system-design/url-shortener/docs/ui-ux/wireframes-and-mockups.md) | Screen layouts, 60/40 Split Dashboard, Google Stitch specs | ✅ Approved |
-| **Visual Mockups** | [ui-ux/mockups/](file:///c:/Users/crisa/Workspace/system-design/url-shortener/docs/ui-ux/mockups/) | 6 High-fidelity Stitch screens (PNGs + self-contained HTML) | ✅ 100% Generated |
-| **Architecture Decisions**| [adr/](file:///c:/Users/crisa/Workspace/system-design/url-shortener/docs/adr/) | Formal ADRs 001 through 004 documenting key tech trade-offs | ✅ Approved |
-| **Test Strategy** | [test-plan.md](file:///c:/Users/crisa/Workspace/system-design/url-shortener/docs/test-plan.md) | TDD Red-Green-Refactor, Supertest integration, Playwright E2E | ✅ Approved |
-| **Master Roadmap** | [master-plan.md](file:///c:/Users/crisa/Workspace/system-design/url-shortener/docs/master-plan.md) | 16-week execution timeline from foundation to production | ✅ Approved |
+| **Tracking & Status** | [progress-tracker.md](./progress-tracker.md) | Audit of all completed setups, verification logs, and SDLC checklist | ✅ Active Track |
+| **Git Flow & Releases** | [git-flow.md](./git-flow.md) | Branching strategy, PR policies, SemVer tagging, and Conventional Commits | ✅ Active Standard |
+| **Demo Accounts** | [demo-accounts.md](./demo-accounts.md) | Preconfigured seed accounts, role hierarchy, and login guide | ✅ Active |
+| **Requirements** | [prd.md](./prd.md) | 4 Personas, Gherkin user stories, feature prioritization | ✅ Approved |
+| **Specifications** | [srs.md](./srs.md) | IEEE 830 functional & non-functional requirements, SLA matrix | ✅ Approved |
+| **Data Design** | [architecture/database-design.md](./architecture/database-design.md) | Mermaid ERD, Data Dictionary, TimescaleDB Hypertables, Indexes | ✅ Approved |
+| **System Design** | [architecture/system-architecture.md](./architecture/system-architecture.md) | C4 Context, Container, Component diagrams, Cache topologies | ✅ Approved |
+| **Sequence Flows** | [architecture/sequence-flows.md](./architecture/sequence-flows.md) | Hot path profile read, Beacon click tracking, Cache eviction | ✅ Approved |
+| **User Flows & Sitemap** | [ui-ux/user-flows-and-sitemap.md](./ui-ux/user-flows-and-sitemap.md) | Visitor vs Creator flows, complete sitemap, 5-state UI matrix | ✅ Approved |
+| **Design System** | [ui-ux/DESIGN.md](./ui-ux/DESIGN.md) | Carbon Architecture tokens (Zinc 950 `#09090b`, Geist + JetBrains Mono) | ✅ Approved |
+| **UI/UX & Wireframes**| [ui-ux/wireframes-and-mockups.md](./ui-ux/wireframes-and-mockups.md) | Screen layouts, 60/40 Split Dashboard, Google Stitch specs | ✅ Approved |
+| **Visual Mockups** | [ui-ux/mockups/](./ui-ux/mockups/) | 6 High-fidelity Stitch screens (PNGs + self-contained HTML) | ✅ 100% Generated |
+| **Architecture Decisions**| [adr/](./adr/) | Formal ADRs 001 through 004 documenting key tech trade-offs | ✅ Approved |
+| **Test Strategy** | [test-plan.md](./test-plan.md) | TDD Red-Green-Refactor, Supertest integration, Playwright E2E | ✅ Approved |
+| **Master Roadmap** | [master-plan.md](./master-plan.md) | 16-week execution timeline from foundation to production | ✅ Approved |
 
 ---
 

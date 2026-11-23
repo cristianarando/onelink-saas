@@ -1,6 +1,20 @@
-# 🔗 Scalable Link-in-Bio Platform
+# 🔗 OneLink — Scalable Link-in-Bio SaaS Platform
 
-> High-performance, mobile-first **Link-in-Bio platform** (Linktree alternative) engineered with modern distributed system design, clean hexagonal architecture, TimescaleDB time-series analytics, and enterprise SDLC rigor.
+[![CI Pipeline](https://github.com/cristianarando/onelink-saas/actions/workflows/ci.yml/badge.svg)](https://github.com/cristianarando/onelink-saas/actions/workflows/ci.yml)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-onelink--saas.vercel.app-000000?style=flat&logo=vercel)](https://onelink-saas.vercel.app)
+[![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](./LICENSE)
+[![Next.js 16](https://img.shields.io/badge/Next.js-16.4-black?logo=next.js)](https://nextjs.org/)
+[![NestJS 12](https://img.shields.io/badge/NestJS-12-E0234E?logo=nestjs)](https://nestjs.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-3178C6?logo=typescript)](https://www.typescriptlang.org/)
+[![ONNX Runtime](https://img.shields.io/badge/ONNX_Runtime-In--Process_ML-005CED?logo=onnx)](https://onnxruntime.ai/)
+
+> High-performance, mobile-first **Link-in-Bio SaaS platform** engineered with modern distributed system design, clean modular architecture, TimescaleDB time-series telemetry, Redis cache-aside hot paths, Stripe billing, and in-process ONNX ML threat detection (`<18ms` inference SLA).
+
+> [!TIP]
+> ### 🌐 Live Production Demo & Quick Evaluation
+> - **Web Application**: [https://onelink-saas.vercel.app](https://onelink-saas.vercel.app)
+> - **Sample Public Profile**: [https://onelink-saas.vercel.app/crisarando](https://onelink-saas.vercel.app/crisarando)
+> - **Demo Founder Account**: `cris@onelink.bio` / `Password123!` · **Super Admin**: `admin@onelink.bio` / `Password123!`
 
 <img width="1698" height="993" alt="{1F1ED40A-A4D2-4932-8581-A440B4196653}" src="https://github.com/user-attachments/assets/0c696dec-4655-42ce-9ef1-2559f3e39315" />
 <img width="1858" height="994" alt="{C62E3677-2F51-467F-9917-528A184D86F3}" src="https://github.com/user-attachments/assets/f07e1cc3-8200-4040-bc2b-b0c5de2da32f" />
@@ -11,14 +25,16 @@
 
 | Domain | Technology | Description |
 |---|---|---|
-| **Monorepo Engine** | [Turborepo 2.4+](https://turbo.build/) + [pnpm 12](https://pnpm.io/) | Workspaces, isolated dependencies, cached pipelines |
-| **Backend API** | [NestJS 12](https://nestjs.com/) + [SWC Compiler](https://swc.rs/) | Clean Architecture, Swagger OpenAPI 3.0, compiles in ~70ms |
-| **Frontend Web** | [Next.js 16.4](https://nextjs.org/) + [React 19](https://react.dev/) | App Router, Server Components, ISR for vanity profiles |
-| **Styling** | [Tailwind CSS v4](https://tailwindcss.com/) (`@tailwindcss/turbopack`) | Modern CSS theme engine, dynamic color variables |
-| **Database** | [PostgreSQL 16](https://www.postgresql.org/) + [TimescaleDB](https://www.timescale.com/) | Relational core + partitioned Hypertables for analytics |
-| **Cache & Message Broker** | [Redis 7 Stack](https://redis.io/) + [BullMQ](https://docs.bullmq.io/) | Profile JSON cache-aside, asynchronous click tracking |
-| **Data Modeling & Validation** | [Prisma 6](https://www.prisma.io/) + [Zod 3.24+](https://zod.dev/) | End-to-end type safety and validation |
-| **Local Infrastructure** | [Docker Compose](https://www.docker.com/) | Containerized PostgreSQL, Redis, and Mailhog |
+| **Monorepo Engine** | [Turborepo 2.11+](https://turbo.build/) + [pnpm 12](https://pnpm.io/) | Workspaces, isolated dependencies, cached pipelines |
+| **Backend API** | [NestJS 12](https://nestjs.com/) + [SWC Compiler](https://swc.rs/) | Modular Architecture, Swagger OpenAPI 3.0, JWT & Google OAuth 2.0 |
+| **Frontend Web** | [Next.js 16.4](https://nextjs.org/) + [React 19](https://react.dev/) | App Router, Server Components, Partial Prerendering & Streaming Suspense |
+| **Styling** | [Tailwind CSS v4](https://tailwindcss.com/) (`@tailwindcss/turbopack`) | Modern CSS theme engine, calibrated WCAG AAA color tokens |
+| **Database** | [PostgreSQL 16](https://www.postgresql.org/) + [TimescaleDB](https://www.timescale.com/) | Relational core + time-series tables for telemetry & analytics |
+| **Cache & Blocklists** | [Redis 7](https://redis.io/) (`ioredis`) | Profile JSON cache-aside (`<15ms`), `O(1)` domain blocklists & session revocation |
+| **ML Threat Defense** | [ONNX Runtime](https://onnxruntime.ai/) (`onnxruntime-node`) | In-process Random Forest URL classifier trained on 235k PhiUSIIL URLs (`<18ms`) |
+| **Data Modeling & Validation** | [Prisma 7.10](https://www.prisma.io/) (`@prisma/adapter-pg`) + [Zod 3.24+](https://zod.dev/) | End-to-end type safety and shared request validation |
+| **Billing & Payments** | [Stripe SDK](https://stripe.com/) | Checkout sessions, webhooks, Customer Portal, VAT PDF invoices & dev sandbox |
+| **Local Infrastructure** | [Docker Compose](https://www.docker.com/) | Containerized TimescaleDB, Redis, and Mailhog |
 
 ---
 
@@ -50,8 +66,8 @@ Follow these steps to run the complete platform on your local machine:
 ### 2. Clone & Install Dependencies
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/url-shortener.git
-cd url-shortener
+git clone https://github.com/cristianarando/onelink-saas.git
+cd onelink-saas
 
 # Install all workspace dependencies
 pnpm install
@@ -65,12 +81,12 @@ pnpm docker:up
 > *To check status: `docker ps` or `pnpm docker:logs`*
 
 ### 4. Initialize & Seed the Database
-Push the schema to PostgreSQL and seed initial preset themes:
+Push the schema to PostgreSQL and seed the 8 WCAG AAA themes, subscription plans, and demo accounts:
 ```bash
-# Push schema tables (User, Profile, Link, Theme, etc.)
+# Push schema tables (User, Profile, Link, Theme, Plan, Subscription, SecurityFlag, etc.)
 pnpm db:push
 
-# Seed default preset themes (Obsidian, Minimal, Cyberpunk, Sakura, Emerald)
+# Seed 8 calibrated preset themes, subscription plans, and demo accounts
 pnpm db:seed
 ```
 
@@ -168,10 +184,22 @@ All primary commands can be executed from the **monorepo root**:
 ### 🚀 Core Platform Capabilities
 - **Responsive Mobile Studio Dashboard**: Dynamic segmented control (`[ Editor | Live Preview ]`), responsive device frames (MacBook Pro 16" & fluid iPhone chassis), and non-colliding two-tier link cards.
 - **Interactive Digital Notepad (`NOTE` Block)**: Rich-text announcement and memo block that opens a frosted-glass reader modal with word count badge and one-click "Copy Text" button.
-- **WCAG AAA Theme Engine**: 8 calibrated high-contrast presets (Minimal Dark, Clean Light, Sunset Aurora, Forest Emerald, Midnight Ocean, Cyberpunk Neon, Bento Linen, Solar Gold).
+- **WCAG AAA Theme Engine**: 8 calibrated high-contrast presets (Minimal Dark, Alpine Snow, Sunset Aurora, Forest Emerald, Midnight Ocean, Cyberpunk Neon, Bento Linen, Solar Gold).
 - **Enterprise Multi-User RBAC**: Numerical hierarchy (`Platform Owner (5)` > `Admin (4)` > `Safety Admin (3)` > `Content Editor (2)` > `Viewer (1)`) with anti-redundancy and anti-recursion guardrails.
 - **Stripe Tax Invoices & PDF Receipts**: Native Stripe customer portal integration and instant official PDF invoice receipt downloads.
-- **Sentinel AI Threat Engine**: Zero-token in-process lexical analysis and ONNX threat classification intercepting crypto-drainers, phishing, and malware in <25ms.
+- **Sentinel AI Threat Engine**: Zero-token in-process lexical analysis and ONNX threat classification intercepting crypto-drainers, phishing, and malware in <18ms.
+
+---
+
+## ⚖️ Key Engineering Decisions & System Design Trade-offs
+
+| Decision | Chosen Approach | Trade-off & Architectural Rationale |
+|---|---|---|
+| **URL Threat Detection** | **In-process ONNX Random Forest (`onnxruntime-node`) + Redis `O(1)` Blocklist** | Eliminates 300–1200ms external LLM/API round-trips and per-request token costs; guarantees `<18ms` inline validation when creators publish links, backed by deterministic Punycode/homoglyph and Shannon entropy checks. |
+| **Public Profile Hot Path** | **Redis Cache-Aside (`profile:<username>`) + Next.js Partial Prerendering** | Offloads viral read spikes from PostgreSQL (`1h` TTL) with immediate reactive key eviction on link, theme, social, or moderation mutations (trade-off: explicit cache invalidation discipline across write services). |
+| **Cross-Origin & Auth Flow** | **Same-Origin Next.js Reverse Proxy (`/api/[...path]`)** | Routes browser requests on the frontend origin and translates backend `Location` redirects cleanly across `localhost`, LAN IPs, and Vercel previews, avoiding CORS preflight overhead and Safari/mobile fetch failures. |
+| **Analytics Ingestion** | **Client `navigator.sendBeacon()` + PostgreSQL/TimescaleDB + SHA-256 IP Hashing** | Non-blocking click and view beacons prevent outbound navigation latency while preserving GDPR-compliant hashed IP telemetry. |
+| **Billing & OAuth Ergonomics** | **Dual-Mode Live Credentials + Deterministic Dev Sandbox** | Seamlessly switches between live Stripe/Google Cloud OAuth in production and zero-credential simulation locally so reviewers can test end-to-end flows immediately without external API keys. |
 
 ---
 
