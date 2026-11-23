@@ -32,17 +32,23 @@ export default function Home() {
   const [pricingInterval, setPricingInterval] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
+  const cleanClaimSlug = claimSlug.replace(/^@/, "").toLowerCase().trim();
+  const effectiveSlugStatus = cleanClaimSlug.length >= 3 ? slugStatus : null;
+  const isCheckingSlug = cleanClaimSlug.length >= 3 && checkingSlug;
+
   // Auto-redirect authenticated creators directly to Studio (Facebook/Notion UX pattern)
   useEffect(() => {
     let active = true;
-    const token = typeof window !== "undefined" ? localStorage.getItem("onelink_token") : null;
-    if (!token) {
-      setIsCheckingAuth(false);
-      return;
-    }
+    const verifySession = async () => {
+      await Promise.resolve();
+      const token = typeof window !== "undefined" ? localStorage.getItem("onelink_token") : null;
+      if (!token) {
+        if (active) setIsCheckingAuth(false);
+        return;
+      }
 
-    fetchCurrentUser()
-      .then((user) => {
+      try {
+        const user = await fetchCurrentUser();
         if (!active) return;
         if (user) {
           if (user.role === "SUPER_ADMIN") {
@@ -54,10 +60,12 @@ export default function Home() {
           clearAuthToken();
           setIsCheckingAuth(false);
         }
-      })
-      .catch(() => {
+      } catch {
         if (active) setIsCheckingAuth(false);
-      });
+      }
+    };
+
+    void verifySession();
 
     return () => {
       active = false;
@@ -68,13 +76,12 @@ export default function Home() {
   useEffect(() => {
     const clean = claimSlug.replace(/^@/, "").toLowerCase().trim();
     if (clean.length < 3) {
-      setSlugStatus(null);
       return;
     }
 
     let active = true;
-    setCheckingSlug(true);
     const timer = setTimeout(async () => {
+      if (active) setCheckingSlug(true);
       try {
         const res = await apiCheckUsername(clean);
         if (active) setSlugStatus(res);
@@ -183,16 +190,16 @@ export default function Home() {
               placeholder="yourname"
               className="w-full bg-transparent text-white focus:outline-none placeholder:text-zinc-600 font-mono"
             />
-            {checkingSlug && (
+            {isCheckingSlug && (
               <span className="text-[10px] text-zinc-400 flex items-center gap-1 shrink-0 font-mono">
                 <Loader2 className="w-3 h-3 animate-spin" />
               </span>
             )}
-            {!checkingSlug && slugStatus && (
+            {!isCheckingSlug && effectiveSlugStatus && (
               <span className={`text-[10px] flex items-center gap-1 shrink-0 font-mono font-medium ${
-                slugStatus.available ? "text-emerald-400" : "text-amber-400"
+                effectiveSlugStatus.available ? "text-emerald-400" : "text-amber-400"
               }`}>
-                {slugStatus.available ? (
+                {effectiveSlugStatus.available ? (
                   <>
                     <CheckCircle2 className="w-3 h-3" />
                     Available
@@ -366,6 +373,7 @@ export default function Home() {
 
                     {/* Avatar & Info */}
                     <div className="w-16 h-16 rounded-full ring-2 ring-white/30 overflow-hidden bg-zinc-800">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80"
                         alt="Creator Portrait"

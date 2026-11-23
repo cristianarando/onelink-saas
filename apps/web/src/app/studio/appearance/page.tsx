@@ -261,17 +261,22 @@ export default function StudioAppearancePage() {
   const [studioLinks, setStudioLinks] = useState<StudioLinkItem[]>([]);
   const [mobileTab, setMobileTab] = useState<"editor" | "preview">("editor");
 
+  const cleanHandle = username.replace(/^@/, "").toLowerCase().trim();
+  const isCheckingHandle =
+    Boolean(cleanHandle) && cleanHandle !== initialUsername && cleanHandle.length >= 3;
+  const effectiveUsernameStatus = isCheckingHandle ? usernameStatus : null;
+  const effectiveCheckingUsername = isCheckingHandle && checkingUsername;
+
   // Debounced real-time username availability check
   useEffect(() => {
     const clean = username.replace(/^@/, "").toLowerCase().trim();
     if (!clean || clean === initialUsername || clean.length < 3) {
-      setUsernameStatus(null);
       return;
     }
 
     let active = true;
-    setCheckingUsername(true);
     const timer = setTimeout(async () => {
+      if (active) setCheckingUsername(true);
       try {
         const res = await apiCheckUsername(clean);
         if (active) setUsernameStatus(res);
@@ -728,19 +733,19 @@ export default function StudioAppearancePage() {
                   <label className="block text-xs font-mono uppercase text-zinc-400">
                     Vanity Handle (your link)
                   </label>
-                  {checkingUsername && (
+                  {effectiveCheckingUsername && (
                     <span className="text-[10px] font-mono text-zinc-400 flex items-center gap-1">
                       <Loader2 className="w-2.5 h-2.5 animate-spin" />
                       Checking...
                     </span>
                   )}
-                  {!checkingUsername && usernameStatus && (
+                  {!effectiveCheckingUsername && effectiveUsernameStatus && (
                     <span
                       className={`text-[10px] font-mono flex items-center gap-1 ${
-                        usernameStatus.available ? "text-emerald-400" : "text-rose-400"
+                        effectiveUsernameStatus.available ? "text-emerald-400" : "text-rose-400"
                       }`}
                     >
-                      {usernameStatus.available ? (
+                      {effectiveUsernameStatus.available ? (
                         <>
                           <CheckCircle2 className="w-3 h-3" />
                           Available
@@ -748,16 +753,16 @@ export default function StudioAppearancePage() {
                       ) : (
                         <>
                           <AlertCircle className="w-3 h-3" />
-                          {usernameStatus.reason || "Taken"}
+                          {effectiveUsernameStatus.reason || "Taken"}
                         </>
                       )}
                     </span>
                   )}
                 </div>
                 <div className={`flex items-center rounded-xl bg-zinc-900 border px-3 py-2 text-xs sm:text-sm transition-all ${
-                  usernameStatus && !usernameStatus.available
+                  effectiveUsernameStatus && !effectiveUsernameStatus.available
                     ? "border-rose-500/50 focus-within:border-rose-500"
-                    : usernameStatus?.available
+                    : effectiveUsernameStatus?.available
                       ? "border-emerald-500/50 focus-within:border-emerald-500"
                       : "border-white/10 focus-within:border-zinc-400"
                 }`}>

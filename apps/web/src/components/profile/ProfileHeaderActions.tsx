@@ -11,13 +11,11 @@ interface ProfileHeaderActionsProps {
 
 export function ProfileHeaderActions({ username }: ProfileHeaderActionsProps) {
   const [session, setSession] = useState<CurrentUserSession | null>(null);
-  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     let active = true;
     const token = typeof window !== "undefined" ? localStorage.getItem("onelink_token") : null;
     if (!token) {
-      setLoaded(true);
       return;
     }
 
@@ -25,11 +23,10 @@ export function ProfileHeaderActions({ username }: ProfileHeaderActionsProps) {
       .then((user) => {
         if (active) {
           setSession(user);
-          setLoaded(true);
         }
       })
       .catch(() => {
-        if (active) setLoaded(true);
+        // Ignore unauthenticated errors
       });
 
     return () => {

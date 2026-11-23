@@ -1,10 +1,10 @@
 {
   "name": "api",
   "version": "0.0.1",
-  "description": "",
-  "author": "",
+  "description": "OneLink REST API (NestJS 12, Prisma 7, Redis 7, ONNX Sentinel AI)",
+  "author": "Cristian Arando",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "MIT",
   "scripts": {
     "build": "tsc -p tsconfig.build.json && node scripts/copy-assets.js",
     "dev": "nest start --watch",

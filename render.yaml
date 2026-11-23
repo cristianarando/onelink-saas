@@ -10,7 +10,7 @@ services:
     autoDeploy: true
     envVars:
       - key: NODE_VERSION
-        value: 20.19.0
+        value: 24.11.1
       - key: NODE_ENV
         value: production
       - key: PORT
