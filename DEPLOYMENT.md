@@ -80,7 +80,7 @@ flowchart LR
 ## Step 3: Deploy NestJS Backend API (Render)
 
 1. Sign in to [render.com](https://render.com) and click **New +** $\rightarrow$ **Web Service**.
-2. Connect your GitHub repository: `url-shortener`.
+2. Connect your GitHub repository: `onelink-saas` (`https://github.com/cristianarando/onelink-saas`).
 3. Configure the service settings:
    - **Name**: `onelink-api`
    - **Region**: Same region as your database (`US East - Ohio` or `Frankfurt`).
@@ -123,7 +123,7 @@ Render free instances go to sleep after 15 minutes of inactivity. To keep your A
 ## Step 4: Deploy Next.js Frontend (Vercel)
 
 1. Sign in to [vercel.com](https://vercel.com) and click **Add New...** $\rightarrow$ **Project**.
-2. Import the `url-shortener` repository.
+2. Import the `onelink-saas` repository.
 3. In project configuration:
    - **Framework Preset**: `Next.js`
    - **Root Directory**: Click edit and choose `apps/web`.
@@ -163,7 +163,7 @@ Render free instances go to sleep after 15 minutes of inactivity. To keep your A
 ## ✅ Post-Deployment Verification Checklist
 
 1. [ ] **Public Vanity Route**: Visit `https://your-app.vercel.app/crisarando` — verify links, profile avatar, theme styling, and social icons render without layout shifts.
-2. [ ] **Creator Studio**: Log in with `cris@onelink.bio` / `CrisSecure#2026!` at `/login` — test adding a link, changing theme in Appearance, and preview phone simulation.
+2. [ ] **Creator Studio**: Log in with `cris@onelink.bio` / `Password123!` at `/login` — test adding a link, changing theme in Appearance, and preview phone simulation.
 3. [ ] **Sentinel AI Sandbox**: Visit `/admin/moderation`, navigate to **Interception Engine**, and evaluate `http://metamask-security-auth.xyz/drain` — confirm sub-18ms inference latency and `BLOCK_IMMEDIATE` verdict.
 4. [ ] **CORS Verification**: Confirm browser network tab shows `Access-Control-Allow-Origin: https://your-app.vercel.app` without CORS blocking.
 5. [ ] **Database Persistence**: Modify profile bio in Creator Studio and refresh public page to verify Prisma read/write consistency.
