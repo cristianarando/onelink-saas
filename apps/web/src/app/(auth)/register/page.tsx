@@ -50,17 +50,20 @@ function RegisterForm() {
     reason?: string;
   } | null>(null);
 
+  const cleanUsernameInput = username.replace(/^@/, "").toLowerCase().trim();
+  const effectiveUsernameStatus = cleanUsernameInput.length >= 3 ? usernameStatus : null;
+  const isCheckingUsername = cleanUsernameInput.length >= 3 && checkingUsername;
+
   // Real-time username check with 300ms debounce
   useEffect(() => {
     const clean = username.replace(/^@/, "").toLowerCase().trim();
     if (clean.length < 3) {
-      setUsernameStatus(null);
       return;
     }
 
     let active = true;
-    setCheckingUsername(true);
     const timer = setTimeout(async () => {
+      if (active) setCheckingUsername(true);
       try {
         const res = await apiCheckUsername(clean);
         if (active) {
@@ -176,19 +179,19 @@ function RegisterForm() {
             <label className="block text-xs font-mono uppercase text-zinc-400">
               Vanity Handle
             </label>
-            {checkingUsername && (
+            {isCheckingUsername && (
               <span className="text-[10px] font-mono text-zinc-400 flex items-center gap-1">
                 <Loader2 className="w-2.5 h-2.5 animate-spin" />
                 Checking...
               </span>
             )}
-            {!checkingUsername && usernameStatus && (
+            {!isCheckingUsername && effectiveUsernameStatus && (
               <span
                 className={`text-[10px] font-mono flex items-center gap-1 ${
-                  usernameStatus.available ? "text-emerald-400" : "text-rose-400"
+                  effectiveUsernameStatus.available ? "text-emerald-400" : "text-rose-400"
                 }`}
               >
-                {usernameStatus.available ? (
+                {effectiveUsernameStatus.available ? (
                   <>
                     <CheckCircle2 className="w-3 h-3" />
                     Available
@@ -196,16 +199,16 @@ function RegisterForm() {
                 ) : (
                   <>
                     <AlertCircle className="w-3 h-3" />
-                    {usernameStatus.reason || "Taken"}
+                    {effectiveUsernameStatus.reason || "Taken"}
                   </>
                 )}
               </span>
             )}
           </div>
           <div className={`flex items-center rounded-xl bg-zinc-950 border px-3 py-2 text-xs sm:text-sm transition-all ${
-            usernameStatus && !usernameStatus.available
+            effectiveUsernameStatus && !effectiveUsernameStatus.available
               ? "border-rose-500/50 focus-within:border-rose-500"
-              : usernameStatus?.available
+              : effectiveUsernameStatus?.available
                 ? "border-emerald-500/50 focus-within:border-emerald-500"
                 : "border-white/10 focus-within:border-zinc-400"
           }`}>

@@ -306,7 +306,7 @@ export class AuthService {
   /**
    * Exchanges authorization code for Google profile and authenticates user.
    */
-  async handleGoogleCallback(code: string, state?: string) {
+  async handleGoogleCallback(code: string, _state?: string) {
     const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
     const clientSecret = this.configService.get<string>('GOOGLE_CLIENT_SECRET');
     const callbackUrl =

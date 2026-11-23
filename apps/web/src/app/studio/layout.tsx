@@ -164,12 +164,14 @@ export default function StudioLayout({ children }: StudioLayoutProps) {
   }, [router]);
 
   useEffect(() => {
-    reloadSession();
-    loadCollaborations();
+    const timer = setTimeout(() => {
+      reloadSession();
+      void loadCollaborations();
+    }, 0);
 
     const handleUpdate = () => {
       reloadSession();
-      loadCollaborations();
+      void loadCollaborations();
     };
 
     const handleProfileUpdate = (e: Event) => {
@@ -179,7 +181,7 @@ export default function StudioLayout({ children }: StudioLayoutProps) {
         setActiveWorkspaceAvatar(customEvent.detail.avatarUrl);
       }
       reloadSession();
-      loadCollaborations();
+      void loadCollaborations();
     };
 
     window.addEventListener("subscription_updated", handleUpdate);
@@ -187,6 +189,7 @@ export default function StudioLayout({ children }: StudioLayoutProps) {
     window.addEventListener("collaboration_updated", handleUpdate);
     window.addEventListener("profile_updated", handleProfileUpdate);
     return () => {
+      clearTimeout(timer);
       window.removeEventListener("subscription_updated", handleUpdate);
       window.removeEventListener("focus", handleUpdate);
       window.removeEventListener("collaboration_updated", handleUpdate);
@@ -197,21 +200,26 @@ export default function StudioLayout({ children }: StudioLayoutProps) {
   // Synchronize avatar with active workspace
   useEffect(() => {
     let isMounted = true;
-    if (activeWorkspace?.ownerUsername) {
-      if (activeWorkspace.ownerAvatarUrl) {
-        setActiveWorkspaceAvatar(activeWorkspace.ownerAvatarUrl);
+    const syncWorkspaceAvatar = async () => {
+      await Promise.resolve();
+      if (!isMounted) return;
+      if (activeWorkspace?.ownerUsername) {
+        if (activeWorkspace.ownerAvatarUrl) {
+          setActiveWorkspaceAvatar(activeWorkspace.ownerAvatarUrl);
+        } else {
+          fetchProfile(activeWorkspace.ownerUsername)
+            .then((p) => {
+              if (isMounted && p?.avatarUrl) {
+                setActiveWorkspaceAvatar(p.avatarUrl);
+              }
+            })
+            .catch(() => {});
+        }
       } else {
-        fetchProfile(activeWorkspace.ownerUsername)
-          .then((p) => {
-            if (isMounted && p?.avatarUrl) {
-              setActiveWorkspaceAvatar(p.avatarUrl);
-            }
-          })
-          .catch(() => {});
+        setActiveWorkspaceAvatar(null);
       }
-    } else {
-      setActiveWorkspaceAvatar(null);
-    }
+    };
+    void syncWorkspaceAvatar();
     return () => {
       isMounted = false;
     };
@@ -296,7 +304,7 @@ export default function StudioLayout({ children }: StudioLayoutProps) {
           <Link
             href="/"
             className="flex items-center space-x-2.5 group cursor-pointer"
-            title="Volver a Inicio OneLink"
+            title="Back to OneLink Home"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img

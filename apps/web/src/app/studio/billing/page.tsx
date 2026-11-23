@@ -63,10 +63,6 @@ function BillingContent() {
   const [subscription, setSubscription] = useState<BillingSubscription | null>(null);
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceCollaboration | null>(null);
   const [currentTimestamp, setCurrentTimestamp] = useState<number>(0);
-
-  useEffect(() => {
-    setCurrentTimestamp(Date.now());
-  }, []);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [invoices, setInvoices] = useState<BillingInvoice[]>([]);
   const [maxSeats, setMaxSeats] = useState(5);
@@ -76,6 +72,7 @@ function BillingContent() {
 
   const loadData = useCallback(async () => {
     try {
+      setCurrentTimestamp(Date.now());
       const [p, s, t, invs] = await Promise.all([
         fetchBillingPlans(),
         fetchMySubscription(),
