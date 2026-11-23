@@ -12,6 +12,7 @@ interface LinkPillProps {
   id: string;
   title: string;
   url: string | null;
+  content?: string | null;
   type: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE";
   thumbnailUrl: string | null;
   profileId: string;
@@ -30,6 +31,7 @@ export function LinkPill({
   id,
   title,
   url,
+  content,
   type,
   thumbnailUrl,
   profileId,
@@ -288,6 +290,7 @@ export function LinkPill({
 
   // 4. Note / Announcement Block
   if (type === "NOTE") {
+    const noteBody = content || url || "";
     return (
       <>
         <button
@@ -371,20 +374,20 @@ export function LinkPill({
 
               {/* Note Content */}
               <div className="max-h-60 overflow-y-auto p-4 rounded-xl bg-black/50 border border-white/5 font-sans text-xs sm:text-sm text-zinc-200 leading-relaxed whitespace-pre-wrap select-text custom-scrollbar">
-                {url || "(Empty note content)"}
+                {noteBody || "(Empty note content)"}
               </div>
 
               {/* Modal Actions */}
               <div className="flex items-center justify-between pt-1">
                 <span className="text-[10px] font-mono text-zinc-500">
-                  {(url || "").split(/\s+/).filter(Boolean).length} words
+                  {noteBody.split(/\s+/).filter(Boolean).length} words
                 </span>
                 <div className="flex items-center space-x-2">
                   <button
                     type="button"
                     onClick={() => {
-                      if (url) {
-                        navigator.clipboard.writeText(url);
+                      if (noteBody) {
+                        navigator.clipboard.writeText(noteBody);
                         setCopiedNote(true);
                         setTimeout(() => setCopiedNote(false), 2000);
                       }

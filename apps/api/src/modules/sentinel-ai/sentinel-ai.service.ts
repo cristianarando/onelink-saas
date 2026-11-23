@@ -537,7 +537,9 @@ export class SentinelAiService implements OnModuleInit {
 
       // Evict cached profile in Redis
       if (user.profile?.username) {
-        await this.redis.del(`profile:username:${user.profile.username.toLowerCase()}`);
+        const cleanUser = user.profile.username.toLowerCase().trim();
+        await this.redis.del(`profile:${cleanUser}`);
+        await this.redis.del(`profile:username:${cleanUser}`);
       }
       if (user.profile?.id) {
         await this.redis.del(`profile:id:${user.profile.id}`);
@@ -548,7 +550,9 @@ export class SentinelAiService implements OnModuleInit {
       // Reinstated: remove from Redis banned users
       await this.redis.srem('auth:banned_users', userId);
       if (user.profile?.username) {
-        await this.redis.del(`profile:username:${user.profile.username.toLowerCase()}`);
+        const cleanUser = user.profile.username.toLowerCase().trim();
+        await this.redis.del(`profile:${cleanUser}`);
+        await this.redis.del(`profile:username:${cleanUser}`);
       }
       this.logger.log(`User ${user.email} reinstated.`);
     }

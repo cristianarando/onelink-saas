@@ -235,29 +235,42 @@ export class AuthService {
         candidate = `${candidate}${Math.floor(100 + Math.random() * 900)}`;
       }
 
-      const created = await this.prisma.profile.create({
-        data: {
-          userId: user.id,
-          username: candidate,
-          title: user.name || 'Creator',
-          bio:
-            user.role === 'SUPER_ADMIN'
-              ? 'Platform Security & Operations Lead'
-              : 'Welcome to my OneLink bio',
-          themeId: defaultTheme?.id,
-          isPublished: true,
-        },
-        select: {
-          id: true,
-          username: true,
-          title: true,
-          bio: true,
-          avatarUrl: true,
-          isPublished: true,
-          themeId: true,
-        },
-      });
-      user.profile = created;
+      const profileSelect = {
+        id: true,
+        username: true,
+        title: true,
+        bio: true,
+        avatarUrl: true,
+        isPublished: true,
+        themeId: true,
+      };
+
+      try {
+        const created = await this.prisma.profile.create({
+          data: {
+            userId: user.id,
+            username: candidate,
+            title: user.name || 'Creator',
+            bio:
+              user.role === 'SUPER_ADMIN'
+                ? 'Platform Security & Operations Lead'
+                : 'Welcome to my OneLink bio',
+            themeId: defaultTheme?.id,
+            isPublished: true,
+          },
+          select: profileSelect,
+        });
+        user.profile = created;
+      } catch (err) {
+        const existingProfile = await this.prisma.profile.findUnique({
+          where: { userId: user.id },
+          select: profileSelect,
+        });
+        if (!existingProfile) {
+          throw err;
+        }
+        user.profile = existingProfile;
+      }
     }
 
     return user;

@@ -210,7 +210,7 @@ describe('BillingService', () => {
         type: 'invoice.payment_succeeded',
         data: {
           object: {
-            amount_paid: 900,
+            amount_paid: 200,
           },
         },
       };
