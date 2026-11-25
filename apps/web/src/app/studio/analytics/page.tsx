@@ -11,12 +11,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useStudioWorkspace } from "@/hooks/useStudioWorkspace";
 import {
-  fetchProfile,
-  fetchCurrentUser,
   fetchProfileAnalytics,
-  fetchMySubscription,
-  BillingSubscription,
   type AnalyticsData,
 } from "@/lib/api-client";
 import { MetricsCards } from "@/components/studio/analytics/MetricsCards";
@@ -26,143 +23,64 @@ import { BreakdownCards } from "@/components/studio/analytics/BreakdownCards";
 
 export default function StudioAnalyticsPage() {
   const router = useRouter();
-  const [profileId, setProfileId] = useState<string>("");
-  const [username, setUsername] = useState<string>("");
+  const {
+    profileId,
+    username,
+    subscription,
+    loading: workspaceLoading,
+    unauthenticated,
+  } = useStudioWorkspace();
+
   const [days, setDays] = useState<number>(30);
   const [loading, setLoading] = useState<boolean>(true);
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [exportNotice, setExportNotice] = useState<string | null>(null);
-  const [subscription, setSubscription] = useState<BillingSubscription | null>(null);
 
-  // Fetch telemetry
-  const loadAnalytics = useCallback(async (targetId?: string) => {
-    const activeId = targetId || profileId;
-    if (!activeId) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await fetchProfileAnalytics(activeId, days);
-      if (res) {
-        setData(res);
-      } else {
-        setData(generateZeroData(days));
+  const planCode = subscription?.plan?.code || "FREE";
+  const effectiveDays = planCode === "FREE" ? Math.min(days, 7) : days;
+
+  const loadAnalytics = useCallback(
+    async (targetId?: string, windowDays?: number) => {
+      const activeId = targetId || profileId;
+      const activeDays = windowDays ?? effectiveDays;
+      if (!activeId) {
+        setLoading(false);
+        return;
       }
-    } catch {
-      setData(generateZeroData(days));
-    } finally {
-      setLoading(false);
-      setLastRefreshed(new Date());
-    }
-  }, [profileId, days]);
-
-  // Load profile identity & subscription
-  useEffect(() => {
-    let mounted = true;
-    const initProfile = async () => {
+      setLoading(true);
       try {
-        const [userSession, sub] = await Promise.all([
-          fetchCurrentUser(),
-          fetchMySubscription(),
-        ]);
-
-        let targetProfileId = "";
-        let targetUsername = "";
-        let effectiveSub = sub;
-
-        // Check if user selected an active workspace
-        const storedWs = typeof window !== "undefined" ? localStorage.getItem("onelink_active_workspace") : null;
-        if (storedWs) {
-          try {
-            const parsedWs = JSON.parse(storedWs);
-            if (parsedWs.ownerProfileId && parsedWs.ownerUsername) {
-              targetProfileId = parsedWs.ownerProfileId;
-              targetUsername = parsedWs.ownerUsername;
-              effectiveSub = {
-                id: `sub_${parsedWs.ownerUserId}`,
-                userId: parsedWs.ownerUserId,
-                planId: "plan_enterprise",
-                status: "ACTIVE",
-                stripeCustomerId: null,
-                stripeSubscriptionId: null,
-                currentPeriodEnd: null,
-                plan: {
-                  id: "plan_enterprise",
-                  name: "Enterprise Studio",
-                  code: parsedWs.ownerPlan || "ENTERPRISE",
-                  priceCents: 2900,
-                  interval: "MONTHLY",
-                  features: {
-                    maxLinks: 9999,
-                    customDomains: true,
-                    removeBranding: true,
-                    customThemes: true,
-                    analyticsRetentionDays: 365,
-                  },
-                },
-              };
-            }
-          } catch {
-            // Ignore parse error
-          }
-        }
-
-        if (!targetProfileId && userSession?.profile?.id) {
-          targetProfileId = userSession.profile.id;
-          targetUsername = userSession.profile.username;
-        }
-
-        if (!targetProfileId && userSession?.profile?.username) {
-          const p = await fetchProfile(userSession.profile.username);
-          if (p?.id) {
-            targetProfileId = p.id;
-            targetUsername = p.username || userSession.profile.username;
-          }
-        }
-
-        if (!targetProfileId) {
-          if (mounted) {
-            router.push("/login");
-          }
-          return;
-        }
-
-        if (mounted) {
-          setSubscription(effectiveSub);
-          if (effectiveSub?.plan?.code === "FREE" && days > 7) {
-            setDays(7);
-          }
-          if (targetProfileId) {
-            setProfileId(targetProfileId);
-            setUsername(targetUsername);
-            loadAnalytics(targetProfileId);
-          }
+        const res = await fetchProfileAnalytics(activeId, activeDays);
+        if (res) {
+          setData(res);
+        } else {
+          setData(generateZeroData(activeDays));
         }
       } catch {
-        if (mounted) {
-          setData(generateZeroData(days));
-          setLoading(false);
-        }
+        setData(generateZeroData(activeDays));
+      } finally {
+        setLoading(false);
+        setLastRefreshed(new Date());
       }
-    };
+    },
+    [profileId, effectiveDays]
+  );
 
-    initProfile();
+  useEffect(() => {
+    if (!workspaceLoading && unauthenticated) {
+      router.push("/login");
+    }
+  }, [workspaceLoading, unauthenticated, router]);
 
-    const handleWorkspaceChanged = () => {
-      initProfile();
-    };
-
-    window.addEventListener("workspace_changed", handleWorkspaceChanged);
-    return () => {
-      mounted = false;
-      window.removeEventListener("workspace_changed", handleWorkspaceChanged);
-    };
-  }, [days, loadAnalytics, router]);
+  useEffect(() => {
+    if (workspaceLoading || !profileId) return;
+    const timer = setTimeout(() => {
+      void loadAnalytics(profileId, effectiveDays);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [workspaceLoading, profileId, effectiveDays, loadAnalytics]);
 
   const handleSelectDays = (targetDays: number) => {
-    const planCode = subscription?.plan?.code || "FREE";
     if (planCode === "FREE" && targetDays > 7) {
       setExportNotice(
         "30-day and 90-day telemetry require Creator Pro ($2/mo). Free tier retains 7 days."
@@ -192,7 +110,7 @@ export default function StudioAnalyticsPage() {
       // 1. Report Header
       lines.push([escape("OneLink Enterprise Analytics & Telemetry Report"), escape(`@${username}`)].join(","));
       lines.push([escape("Generated Timestamp"), escape(new Date().toISOString())].join(","));
-      lines.push([escape("Reporting Window"), escape(`${days} Days (${data.period.startDate} to ${data.period.endDate})`)].join(","));
+      lines.push([escape("Reporting Window"), escape(`${effectiveDays} Days (${data.period.startDate} to ${data.period.endDate})`)].join(","));
       lines.push("");
 
       // 2. Executive KPI Summary
@@ -247,7 +165,7 @@ export default function StudioAnalyticsPage() {
       link.setAttribute("href", csvContent);
       link.setAttribute(
         "download",
-        `onelink-analytics-${username}-${days}d.csv`
+        `onelink-analytics-${username}-${effectiveDays}d.csv`
       );
       document.body.appendChild(link);
       link.click();
@@ -294,7 +212,7 @@ export default function StudioAnalyticsPage() {
             <button
               onClick={() => handleSelectDays(7)}
               className={`px-3 py-1.5 rounded-md font-medium transition-all cursor-pointer ${
-                days === 7
+                effectiveDays === 7
                   ? "bg-white text-[#09090b] shadow-xs font-semibold"
                   : "text-zinc-400 hover:text-white"
               }`}
@@ -304,7 +222,7 @@ export default function StudioAnalyticsPage() {
             <button
               onClick={() => handleSelectDays(30)}
               className={`px-3 py-1.5 rounded-md font-medium transition-all cursor-pointer flex items-center gap-1 ${
-                days === 30
+                effectiveDays === 30
                   ? "bg-white text-[#09090b] shadow-xs font-semibold"
                   : "text-zinc-400 hover:text-white"
               }`}
@@ -317,7 +235,7 @@ export default function StudioAnalyticsPage() {
             <button
               onClick={() => handleSelectDays(90)}
               className={`px-3 py-1.5 rounded-md font-medium transition-all cursor-pointer flex items-center gap-1 ${
-                days === 90
+                effectiveDays === 90
                   ? "bg-white text-[#09090b] shadow-xs font-semibold"
                   : "text-zinc-400 hover:text-white"
               }`}
@@ -427,7 +345,7 @@ export default function StudioAnalyticsPage() {
                   Audience Engagement Over Time
                 </h2>
                 <p className="text-xs text-zinc-400 mt-0.5">
-                  Daily page views vs. outbound link clicks for the past {days}{" "}
+                  Daily page views vs. outbound link clicks for the past {effectiveDays}{" "}
                   days
                 </p>
               </div>

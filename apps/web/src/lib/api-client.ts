@@ -1,10 +1,77 @@
 import { getApiBaseUrl } from "./api-config";
 export { getApiBaseUrl };
+
 const API_BASE_URL = {
   toString() {
     return getApiBaseUrl();
   },
 };
+
+export interface RequestOptions {
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  body?: unknown;
+  auth?: boolean;
+  cache?: RequestCache;
+}
+
+function buildErrorMessage(err: Record<string, unknown> | null, fallbackMsg: string): string {
+  if (!err) return fallbackMsg;
+  const rawMsg = Array.isArray(err.message)
+    ? err.message.join(", ")
+    : typeof err.message === "string"
+      ? err.message
+      : fallbackMsg;
+  const signals = Array.isArray(err.signals) ? err.signals : [];
+  const detail = signals.length > 0 ? ` (${signals[0]})` : "";
+  return `${rawMsg}${detail}`;
+}
+
+/**
+ * Centralized JSON HTTP client that guarantees consistent Content-Type and Bearer headers.
+ */
+async function apiFetchJson<T>(
+  path: string,
+  options: RequestOptions = {},
+  errorMessage = "Request failed"
+): Promise<T> {
+  const { method = "GET", body, auth = true, cache } = options;
+  const token = auth ? await getAuthToken() : null;
+
+  const headers: Record<string, string> = {};
+  if (body !== undefined) {
+    headers["Content-Type"] = "application/json";
+  }
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method,
+    headers: Object.keys(headers).length > 0 ? headers : undefined,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+    ...(cache ? { cache } : {}),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(buildErrorMessage(err as Record<string, unknown> | null, errorMessage));
+  }
+
+  return (await res.json()) as T;
+}
+
+async function apiFetchOptional<T>(
+  path: string,
+  fallback: T,
+  options: RequestOptions = { cache: "no-store" }
+): Promise<T> {
+  try {
+    return await apiFetchJson<T>(path, { cache: "no-store", ...options });
+  } catch {
+    return fallback;
+  }
+}
+
 /**
  * Gets the JWT Bearer token from localStorage for authenticated sessions.
  */
@@ -14,28 +81,32 @@ export async function getAuthToken(): Promise<string | null> {
 }
 
 /**
+ * Gets JWT for Super Admin operations from localStorage.
+ */
+export async function getAdminAuthToken(): Promise<string | null> {
+  return getAuthToken();
+}
+
+/**
+ * Clear session token from local storage
+ */
+export function clearAuthToken(): void {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("onelink_token");
+  }
+}
+
+/**
  * Confirm Stripe Checkout Session and activate subscription
  */
 export async function apiConfirmCheckoutSession(
   sessionId: string
 ): Promise<{ success: boolean; planCode?: string }> {
-  const token = await getAuthToken();
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/billing/confirm-session`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ sessionId }),
-    });
-    if (res.ok) {
-      return await res.json();
-    }
-  } catch {
-    // API not reachable
-  }
-  return { success: false };
+  return apiFetchOptional(
+    "/api/billing/confirm-session",
+    { success: false },
+    { method: "POST", body: { sessionId } }
+  );
 }
 
 export interface CurrentUserSession {
@@ -74,93 +145,79 @@ export interface CurrentUserSession {
 export async function fetchCurrentUser(): Promise<CurrentUserSession | null> {
   const token = await getAuthToken();
   if (!token) return null;
-
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      cache: "no-store",
-    });
-
-    if (res.ok) {
-      return (await res.json()) as CurrentUserSession;
-    }
-  } catch {
-    // API not reachable
-  }
-
-  return null;
+  return apiFetchOptional<CurrentUserSession | null>("/api/auth/me", null);
 }
 
-/**
- * Clear session token from local storage
- */
-export function clearAuthToken(): void {
-  if (typeof window !== "undefined") {
-    localStorage.removeItem("onelink_token");
-  }
+export interface ApiThemeData {
+  id?: string;
+  name?: string;
+  bgType: "SOLID" | "GRADIENT" | "IMAGE";
+  bgValue: string;
+  btnStyle: "FILLED" | "OUTLINE" | "SHADOW" | "ROUNDED";
+  btnColor: string;
+  btnTextColor: string;
+  textColor: string;
+  fontFamily: string;
+  btnRadius?: number;
 }
 
-function authHeaders(token: string | null): Record<string, string> | undefined {
-  return token ? { Authorization: `Bearer ${token}` } : undefined;
+export interface ApiLinkRecord {
+  id: string;
+  profileId?: string;
+  title: string;
+  url?: string | null;
+  content?: string | null;
+  type: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE";
+  position: number;
+  thumbnailUrl?: string | null;
+  badge?: string | null;
+  isActive?: boolean;
+  clickCount?: number;
+  startsAt?: string | null;
+  expiresAt?: string | null;
+  isPasswordProtected?: boolean;
+  isAgeRestricted?: boolean;
+  [key: string]: unknown;
+}
+
+export interface ApiProfileResponse {
+  id: string;
+  username: string;
+  title?: string | null;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  seoTitle?: string | null;
+  seoDesc?: string | null;
+  isPublished?: boolean;
+  searchIndexing?: boolean;
+  theme?: ApiThemeData | null;
+  customTheme?: ApiThemeData | null;
+  links?: ApiLinkRecord[];
+  socialLinks?: SocialLinkItem[];
 }
 
 /**
  * Fetch full profile and links from API
  */
-export async function fetchProfile(username: string) {
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/profiles/${username}`, {
-      cache: "no-store",
-    });
-    if (res.ok) {
-      return await res.json();
-    }
-  } catch {
-    // Return null on failure
-  }
-  return null;
+export async function fetchProfile(username: string): Promise<ApiProfileResponse | null> {
+  return apiFetchOptional<ApiProfileResponse | null>(`/api/profiles/${username}`, null, { auth: false });
 }
 
 /**
  * Fetch all links for a profile (both active and inactive) for Creator Studio
  */
-export async function fetchProfileLinks(profileId: string) {
+export async function fetchProfileLinks(profileId: string): Promise<ApiLinkRecord[] | null> {
   if (!profileId || !profileId.trim()) return [];
-  const token = await getAuthToken();
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/links/profile/${profileId}`, {
-      headers: authHeaders(token),
-      cache: "no-store",
-    });
-    if (res.ok) {
-      return await res.json();
-    }
-  } catch {
-    // Return null on failure
-  }
-  return null;
+  return apiFetchOptional<ApiLinkRecord[] | null>(`/api/links/profile/${profileId}`, null);
 }
 
 /**
  * Fetch current authenticated user's profile and links via /api/profiles/me
  */
-export async function fetchMyProfile() {
+export async function fetchMyProfile(): Promise<ApiProfileResponse | null> {
   const token = await getAuthToken();
   if (!token) return null;
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/profiles/me`, {
-      headers: authHeaders(token),
-      cache: "no-store",
-    });
-    if (res.ok) {
-      return await res.json();
-    }
-  } catch {
-    // Return null on failure
-  }
-  return null;
+  return apiFetchOptional<ApiProfileResponse | null>("/api/profiles/me", null);
 }
 
 /**
@@ -181,30 +238,15 @@ export async function apiCreateLink(
     password?: string | null;
     isAgeRestricted?: boolean;
   }
-) {
+): Promise<ApiLinkRecord> {
   if (!profileId || !profileId.trim()) {
     throw new Error("Profile ID is required to create a link.");
   }
-  const token = await getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/api/links/profile/${profileId}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(link),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => null);
-    const detail =
-      err?.signals && Array.isArray(err.signals) && err.signals.length > 0
-        ? ` (${err.signals[0]})`
-        : "";
-    throw new Error(err?.message ? `${err.message}${detail}` : "Failed to create link.");
-  }
-
-  return await res.json();
+  return apiFetchJson<ApiLinkRecord>(
+    `/api/links/profile/${profileId}`,
+    { method: "POST", body: link },
+    "Failed to create link."
+  );
 }
 
 /**
@@ -227,74 +269,44 @@ export async function apiUpdateLink(
     password?: string | null;
     isAgeRestricted?: boolean;
   }
-) {
+): Promise<ApiLinkRecord> {
   if (!profileId || !profileId.trim()) {
     throw new Error("Profile ID is required to update link.");
   }
-  const token = await getAuthToken();
-  const res = await fetch(
-    `${API_BASE_URL}/api/links/${linkId}/profile/${profileId}`,
-    {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify(updates),
-    }
+  return apiFetchJson<ApiLinkRecord>(
+    `/api/links/${linkId}/profile/${profileId}`,
+    { method: "PATCH", body: updates },
+    "Failed to update link."
   );
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => null);
-    const detail =
-      err?.signals && Array.isArray(err.signals) && err.signals.length > 0
-        ? ` (${err.signals[0]})`
-        : "";
-    throw new Error(err?.message ? `${err.message}${detail}` : "Failed to update link.");
-  }
-
-  return await res.json();
 }
 
 /**
  * Unlock a password/PIN protected link
  */
 export async function apiUnlockLink(linkId: string, passwordAttempt: string) {
-  const res = await fetch(`${API_BASE_URL}/api/links/${linkId}/unlock`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ password: passwordAttempt }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => null);
-    throw new Error(err?.message || "Incorrect PIN or password.");
-  }
-
-  return (await res.json()) as { success: boolean; url: string };
+  return apiFetchJson<{ success: boolean; url: string }>(
+    `/api/links/${linkId}/unlock`,
+    { method: "POST", body: { password: passwordAttempt }, auth: false },
+    "Incorrect PIN or password."
+  );
 }
 
 /**
  * Delete a link and compact positions
  */
 export async function apiDeleteLink(linkId: string, profileId: string) {
-  const token = await getAuthToken();
-  const res = await fetch(
-    `${API_BASE_URL}/api/links/${linkId}/profile/${profileId}`,
-    {
-      method: "DELETE",
-      headers: authHeaders(token),
-    }
-  );
-
-  return res.ok;
+  try {
+    await apiFetchJson(`/api/links/${linkId}/profile/${profileId}`, { method: "DELETE" });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
  * Atomically reorder links
  */
 export async function apiReorderLinks(profileId: string, linkIds: string[]) {
-  const token = await getAuthToken();
   const uuidRegex =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const items = linkIds
@@ -303,19 +315,15 @@ export async function apiReorderLinks(profileId: string, linkIds: string[]) {
 
   if (items.length === 0) return true;
 
-  const res = await fetch(
-    `${API_BASE_URL}/api/links/profile/${profileId}/reorder`,
-    {
+  try {
+    await apiFetchJson(`/api/links/profile/${profileId}/reorder`, {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ items }),
-    }
-  );
-
-  return res.ok;
+      body: { items },
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -337,25 +345,11 @@ export async function apiSaveCustomTheme(
   if (!profileId || !profileId.trim()) {
     throw new Error("Profile ID is required to save theme.");
   }
-  const token = await getAuthToken();
-  const res = await fetch(
-    `${API_BASE_URL}/api/profiles/${profileId}/custom-theme`,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify(themeData),
-    }
+  return apiFetchJson<ApiThemeData>(
+    `/api/profiles/${profileId}/custom-theme`,
+    { method: "PUT", body: themeData },
+    "Failed to save custom theme."
   );
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => null);
-    throw new Error(err?.message || "Failed to save custom theme.");
-  }
-
-  return await res.json();
 }
 
 export interface UpdateProfilePayload {
@@ -376,19 +370,13 @@ export interface UpdateProfilePayload {
 export async function apiCheckUsername(
   username: string
 ): Promise<{ available: boolean; username: string; reason?: string }> {
-  try {
-    const clean = (username || '').replace(/^@/, '').toLowerCase().trim();
-    if (!clean) return { available: false, username: '', reason: 'Username is required' };
-    const res = await fetch(`${API_BASE_URL}/api/profiles/check-username/${encodeURIComponent(clean)}`, {
-      cache: 'no-store',
-    });
-    if (res.ok) {
-      return await res.json();
-    }
-  } catch {
-    // API failure fallback
-  }
-  return { available: false, username, reason: 'Unable to check availability' };
+  const clean = (username || "").replace(/^@/, "").toLowerCase().trim();
+  if (!clean) return { available: false, username: "", reason: "Username is required" };
+  return apiFetchOptional(
+    `/api/profiles/check-username/${encodeURIComponent(clean)}`,
+    { available: false, username, reason: "Unable to check availability" },
+    { auth: false }
+  );
 }
 
 /**
@@ -401,20 +389,11 @@ export async function apiUpdateProfile(
   if (!profileId || !profileId.trim()) {
     throw new Error("Profile ID is required to update profile.");
   }
-  const token = await getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/api/profiles/${profileId}`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => null);
-    throw new Error(err?.message || "Failed to update profile");
-  }
+  await apiFetchJson(
+    `/api/profiles/${profileId}`,
+    { method: "PATCH", body: data },
+    "Failed to update profile"
+  );
 
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("profile_updated", { detail: data }));
@@ -473,22 +452,10 @@ export async function fetchProfileAnalytics(
   profileId: string,
   days = 30
 ): Promise<AnalyticsData | null> {
-  const token = await getAuthToken();
-  try {
-    const res = await fetch(
-      `${API_BASE_URL}/api/analytics/profile/${profileId}?days=${days}`,
-      {
-        headers: authHeaders(token),
-        cache: "no-store",
-      }
-    );
-    if (res.ok) {
-      return await res.json();
-    }
-  } catch {
-    // API not reachable
-  }
-  return null;
+  return apiFetchOptional<AnalyticsData | null>(
+    `/api/analytics/profile/${profileId}?days=${days}`,
+    null
+  );
 }
 
 // ============================================================================
@@ -574,47 +541,17 @@ export interface SentinelEvaluationResult {
 }
 
 /**
- * Gets JWT for Super Admin operations from localStorage.
- */
-export async function getAdminAuthToken(): Promise<string | null> {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("onelink_token");
-}
-
-/**
  * Fetch Sentinel Engine Telemetry
  */
 export async function fetchSentinelTelemetry(): Promise<SentinelTelemetry | null> {
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/sentinel/telemetry`, {
-      cache: "no-store",
-    });
-    if (res.ok) {
-      return await res.json();
-    }
-  } catch {
-    // Fail gracefully
-  }
-  return null;
+  return apiFetchOptional<SentinelTelemetry | null>("/api/sentinel/telemetry", null, { auth: false });
 }
 
 /**
  * Fetch recent threats detected by Sentinel AI
  */
 export async function fetchSecurityThreats(limit = 50): Promise<SecurityThreatItem[]> {
-  const token = await getAdminAuthToken();
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/admin/security/threats?limit=${limit}`, {
-      headers: authHeaders(token),
-      cache: "no-store",
-    });
-    if (res.ok) {
-      return await res.json();
-    }
-  } catch {
-    // Return empty on failure
-  }
-  return [];
+  return apiFetchOptional<SecurityThreatItem[]>(`/api/admin/security/threats?limit=${limit}`, []);
 }
 
 /**
@@ -622,43 +559,50 @@ export async function fetchSecurityThreats(limit = 50): Promise<SecurityThreatIt
  */
 export async function evaluateUrlWithSentinel(url: string): Promise<SentinelEvaluationResult | null> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/sentinel/evaluate`, {
+    const data = await apiFetchJson<Record<string, unknown>>("/api/sentinel/evaluate", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
+      body: { url },
+      auth: false,
     });
-    if (res.ok) {
-      const data = await res.json();
-      const reasonsList: string[] = Array.isArray(data.signals)
-        ? data.signals
-        : Array.isArray(data.reasons)
-        ? data.reasons
+    const reasonsList: string[] = Array.isArray(data.signals)
+      ? (data.signals as string[])
+      : Array.isArray(data.reasons)
+        ? (data.reasons as string[])
         : [];
-      return {
-        url: data.url || (data.normalizedDomain ? `https://${data.normalizedDomain}` : url),
-        isSafe: Boolean(data.isSafe),
-        action: data.action || (data.isSafe ? "ALLOW" : "BLOCK_IMMEDIATE"),
-        riskScore: typeof data.riskScore === "number" ? data.riskScore : 0,
-        confidence:
-          typeof data.aiConfidence === "number"
-            ? data.aiConfidence
-            : typeof data.confidence === "number"
+    const normalizedDomain = typeof data.normalizedDomain === "string" ? data.normalizedDomain : "";
+    return {
+      url:
+        (typeof data.url === "string" && data.url) ||
+        (normalizedDomain ? `https://${normalizedDomain}` : url),
+      isSafe: Boolean(data.isSafe),
+      action:
+        typeof data.action === "string"
+          ? data.action
+          : data.isSafe
+            ? "ALLOW"
+            : "BLOCK_IMMEDIATE",
+      riskScore: typeof data.riskScore === "number" ? data.riskScore : 0,
+      confidence:
+        typeof data.aiConfidence === "number"
+          ? data.aiConfidence
+          : typeof data.confidence === "number"
             ? data.confidence
             : 0.99,
-        aiConfidence: data.aiConfidence,
-        threatType: data.threatType || null,
-        reasons: reasonsList,
-        signals: reasonsList,
-        entropy: typeof data.entropy === "number" ? data.entropy : 0,
-        normalizedDomain: data.normalizedDomain || "",
-        latencyMs: typeof data.latencyMs === "number" ? data.latencyMs : 0,
-        features: data.features,
-      };
-    }
+      aiConfidence: typeof data.aiConfidence === "number" ? data.aiConfidence : undefined,
+      threatType: typeof data.threatType === "string" ? data.threatType : null,
+      reasons: reasonsList,
+      signals: reasonsList,
+      entropy: typeof data.entropy === "number" ? data.entropy : 0,
+      normalizedDomain,
+      latencyMs: typeof data.latencyMs === "number" ? data.latencyMs : 0,
+      features:
+        data.features && typeof data.features === "object"
+          ? (data.features as Record<string, unknown>)
+          : undefined,
+    };
   } catch {
-    // Fail gracefully
+    return null;
   }
-  return null;
 }
 
 /**
@@ -669,17 +613,12 @@ export async function apiUpdateThreatStatus(
   status: string,
   notes?: string
 ): Promise<boolean> {
-  const token = await getAdminAuthToken();
   try {
-    const res = await fetch(`${API_BASE_URL}/api/admin/security/threats/${flagId}/status`, {
+    await apiFetchJson(`/api/admin/security/threats/${flagId}/status`, {
       method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ status, notes }),
+      body: { status, notes },
     });
-    return res.ok;
+    return true;
   } catch {
     return false;
   }
@@ -689,19 +628,7 @@ export async function apiUpdateThreatStatus(
  * Fetch list of active domain blocklists
  */
 export async function fetchDomainBlocklist(): Promise<DomainBlocklistItem[]> {
-  const token = await getAdminAuthToken();
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/admin/security/blocklist`, {
-      headers: authHeaders(token),
-      cache: "no-store",
-    });
-    if (res.ok) {
-      return await res.json();
-    }
-  } catch {
-    // Return empty
-  }
-  return [];
+  return apiFetchOptional<DomainBlocklistItem[]>("/api/admin/security/blocklist", []);
 }
 
 /**
@@ -711,17 +638,12 @@ export async function apiAddDomainBlocklist(
   domainPattern: string,
   reason: string
 ): Promise<boolean> {
-  const token = await getAdminAuthToken();
   try {
-    const res = await fetch(`${API_BASE_URL}/api/admin/security/blocklist`, {
+    await apiFetchJson("/api/admin/security/blocklist", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ domainPattern, reason }),
+      body: { domainPattern, reason },
     });
-    return res.ok;
+    return true;
   } catch {
     return false;
   }
@@ -731,13 +653,9 @@ export async function apiAddDomainBlocklist(
  * Remove a domain pattern from global blocklist
  */
 export async function apiRemoveDomainBlocklist(id: string): Promise<boolean> {
-  const token = await getAdminAuthToken();
   try {
-    const res = await fetch(`${API_BASE_URL}/api/admin/security/blocklist/${id}`, {
-      method: "DELETE",
-      headers: authHeaders(token),
-    });
-    return res.ok;
+    await apiFetchJson(`/api/admin/security/blocklist/${id}`, { method: "DELETE" });
+    return true;
   } catch {
     return false;
   }
@@ -751,17 +669,12 @@ export async function apiSuspendUser(
   isBanned: boolean,
   reason: string
 ): Promise<boolean> {
-  const token = await getAdminAuthToken();
   try {
-    const res = await fetch(`${API_BASE_URL}/api/admin/security/users/${userId}/suspend`, {
+    await apiFetchJson(`/api/admin/security/users/${userId}/suspend`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ isBanned, reason }),
+      body: { isBanned, reason },
     });
-    return res.ok;
+    return true;
   } catch {
     return false;
   }
@@ -771,19 +684,7 @@ export async function apiSuspendUser(
  * Fetch admin audit log entries
  */
 export async function fetchAdminAuditLogs(limit = 30): Promise<AdminAuditLogItem[]> {
-  const token = await getAdminAuthToken();
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/admin/security/audit-logs?limit=${limit}`, {
-      headers: authHeaders(token),
-      cache: "no-store",
-    });
-    if (res.ok) {
-      return await res.json();
-    }
-  } catch {
-    // Return empty
-  }
-  return [];
+  return apiFetchOptional<AdminAuditLogItem[]>(`/api/admin/security/audit-logs?limit=${limit}`, []);
 }
 
 export interface AdminUserItem {
@@ -805,20 +706,8 @@ export interface AdminUserItem {
  * Fetch all platform users for Super Admin directory & governance
  */
 export async function fetchAdminUsers(search?: string): Promise<AdminUserItem[]> {
-  const token = await getAdminAuthToken();
-  try {
-    const query = search && search.trim() ? `?search=${encodeURIComponent(search.trim())}` : "";
-    const res = await fetch(`${API_BASE_URL}/api/admin/security/users${query}`, {
-      headers: authHeaders(token),
-      cache: "no-store",
-    });
-    if (res.ok) {
-      return await res.json();
-    }
-  } catch (err) {
-    console.error("fetchAdminUsers failed:", err);
-  }
-  return [];
+  const query = search && search.trim() ? `?search=${encodeURIComponent(search.trim())}` : "";
+  return apiFetchOptional<AdminUserItem[]>(`/api/admin/security/users${query}`, []);
 }
 
 /**
@@ -828,22 +717,16 @@ export async function apiUpdateUserRole(
   userId: string,
   role: "CREATOR" | "SUPER_ADMIN" | "OWNER"
 ): Promise<boolean> {
-  const token = await getAdminAuthToken();
   try {
-    const res = await fetch(`${API_BASE_URL}/api/admin/security/users/${userId}/role`, {
+    await apiFetchJson(`/api/admin/security/users/${userId}/role`, {
       method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ role }),
+      body: { role },
     });
-    return res.ok;
+    return true;
   } catch {
     return false;
   }
 }
-
 
 // ============================================================================
 // Billing & Subscriptions API (Screen 6)
@@ -936,76 +819,60 @@ export interface TeamResponse {
   usedSeats: number;
 }
 
+const FALLBACK_PLANS: BillingPlan[] = [
+  {
+    id: "plan_free",
+    code: "FREE",
+    name: "Free Plan",
+    priceCents: 0,
+    interval: "MONTHLY",
+    features: { maxLinks: 5, removeBranding: false, analyticsRetentionDays: 7 },
+  },
+  {
+    id: "plan_pro",
+    code: "PRO",
+    name: "Creator Pro",
+    priceCents: 200,
+    interval: "MONTHLY",
+    features: { maxLinks: 9999, removeBranding: true, customThemes: true, analyticsRetentionDays: 90 },
+  },
+  {
+    id: "plan_ent",
+    code: "ENTERPRISE",
+    name: "Enterprise Studio",
+    priceCents: 500,
+    interval: "MONTHLY",
+    features: {
+      maxLinks: 9999,
+      customDomains: true,
+      removeBranding: true,
+      customThemes: true,
+      sentinelAiPro: true,
+      teamSeats: 5,
+      analyticsRetentionDays: 365,
+    },
+  },
+];
+
 /**
  * Fetch subscription plans catalog
  */
 export async function fetchBillingPlans(): Promise<BillingPlan[]> {
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/billing/plans`, { cache: "no-store" });
-    if (res.ok) return await res.json();
-  } catch {
-    // Return fallback
-  }
-  return [
-    {
-      id: "plan_free",
-      code: "FREE",
-      name: "Free Plan",
-      priceCents: 0,
-      interval: "MONTHLY",
-      features: { maxLinks: 5, removeBranding: false, analyticsRetentionDays: 7 },
-    },
-    {
-      id: "plan_pro",
-      code: "PRO",
-      name: "Creator Pro",
-      priceCents: 200,
-      interval: "MONTHLY",
-      features: { maxLinks: 9999, removeBranding: true, customThemes: true, analyticsRetentionDays: 90 },
-    },
-    {
-      id: "plan_ent",
-      code: "ENTERPRISE",
-      name: "Enterprise Studio",
-      priceCents: 500,
-      interval: "MONTHLY",
-      features: { maxLinks: 9999, customDomains: true, removeBranding: true, customThemes: true, sentinelAiPro: true, teamSeats: 5, analyticsRetentionDays: 365 },
-    },
-  ];
+  return apiFetchOptional<BillingPlan[]>("/api/billing/plans", FALLBACK_PLANS, { auth: false });
 }
 
 /**
  * Fetch current creator subscription
  */
 export async function fetchMySubscription(): Promise<BillingSubscription | null> {
-  const token = await getAuthToken();
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/billing/subscription/me`, {
-      headers: authHeaders(token),
-      cache: "no-store",
-    });
-    if (res.ok) return await res.json();
-  } catch {
-    // Return null
-  }
-  return null;
+  return apiFetchOptional<BillingSubscription | null>("/api/billing/subscription/me", null);
 }
 
 /**
  * Fetch founder financial KPIs
  */
 export async function fetchBillingMetrics(): Promise<BillingMetrics> {
-  const token = await getAuthToken();
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/billing/metrics`, {
-      headers: authHeaders(token),
-      cache: "no-store",
-    });
-    if (res.ok) return await res.json();
-  } catch {
-    // Return fallback
-  }
-  return {
+  return apiFetchOptional<BillingMetrics>("/api/billing/metrics", {
     mrr: 18450.0,
     mrrGrowthMoM: 24.6,
     netNewMrr: 3640.0,
@@ -1019,7 +886,7 @@ export async function fetchBillingMetrics(): Promise<BillingMetrics> {
     arpu: 12.14,
     arpuGrowthQoQ: 11.2,
     ltvEst: 340.0,
-  };
+  });
 }
 
 /**
@@ -1029,99 +896,47 @@ export async function apiCreateCheckoutSession(
   planCode: string,
   interval: "MONTHLY" | "YEARLY" = "MONTHLY"
 ): Promise<{ url: string; simulated?: boolean }> {
-  const token = await getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/api/billing/create-checkout-session`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify({ planCode, interval }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => null);
-    throw new Error(err?.message || "Failed to initiate checkout session");
-  }
-
-  return await res.json();
+  return apiFetchJson(
+    "/api/billing/create-checkout-session",
+    { method: "POST", body: { planCode, interval } },
+    "Failed to initiate checkout session"
+  );
 }
 
 /**
  * Create customer billing portal session
  */
 export async function apiCreatePortalSession(): Promise<{ url: string; simulated?: boolean }> {
-  const token = await getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/api/billing/create-portal-session`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify({}),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => null);
-    throw new Error(err?.message || "Failed to initiate portal session");
-  }
-
-  return await res.json();
+  return apiFetchJson(
+    "/api/billing/create-portal-session",
+    { method: "POST", body: {} },
+    "Failed to initiate portal session"
+  );
 }
 
 /**
  * Fetch official billing invoices and downloadable PDF tax receipts
  */
 export async function fetchInvoices(): Promise<BillingInvoice[]> {
-  const token = await getAuthToken();
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/billing/invoices`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      cache: "no-store",
-    });
-    if (res.ok) return await res.json();
-  } catch {
-    // Return empty on network error
-  }
-  return [];
+  return apiFetchOptional<BillingInvoice[]>("/api/billing/invoices", []);
 }
 
 /**
  * Fetch live Stripe event ledger
  */
 export async function fetchBillingEvents(): Promise<BillingEvent[]> {
-  const token = await getAuthToken();
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/billing/events`, {
-      headers: authHeaders(token),
-      cache: "no-store",
-    });
-    if (res.ok) return await res.json();
-  } catch {
-    // Return empty
-  }
-  return [];
+  return apiFetchOptional<BillingEvent[]>("/api/billing/events", []);
 }
 
 /**
  * Fetch team members and seat allocation
  */
 export async function fetchTeamMembers(): Promise<TeamResponse> {
-  const token = await getAuthToken();
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/billing/team`, {
-      headers: authHeaders(token),
-      cache: "no-store",
-    });
-    if (res.ok) return await res.json();
-  } catch {
-    // Return fallback
-  }
-  return {
+  return apiFetchOptional<TeamResponse>("/api/billing/team", {
     members: [],
     maxSeats: 5,
     usedSeats: 0,
-  };
+  });
 }
 
 /**
@@ -1132,80 +947,44 @@ export async function apiInviteTeamMember(data: {
   name: string;
   role: string;
 }): Promise<TeamResponse> {
-  const token = await getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/api/billing/team/invite`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => null);
-    throw new Error(err?.message || "Failed to invite collaborator");
-  }
-
-  return await res.json();
+  return apiFetchJson(
+    "/api/billing/team/invite",
+    { method: "POST", body: data },
+    "Failed to invite collaborator"
+  );
 }
 
 /**
  * Revoke collaborator access
  */
 export async function apiRevokeTeamMember(memberId: string): Promise<TeamResponse> {
-  const token = await getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/api/billing/team/${memberId}`, {
-    method: "DELETE",
-    headers: authHeaders(token),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => null);
-    throw new Error(err?.message || "Failed to revoke collaborator");
-  }
-
-  return await res.json();
+  return apiFetchJson(
+    `/api/billing/team/${memberId}`,
+    { method: "DELETE" },
+    "Failed to revoke collaborator"
+  );
 }
 
 /**
  * Resend workspace collaboration invite email
  */
 export async function apiResendTeamInvitation(memberId: string): Promise<{ success: boolean; message: string }> {
-  const token = await getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/api/billing/team/${memberId}/resend`, {
-    method: "POST",
-    headers: authHeaders(token),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => null);
-    throw new Error(err?.message || "Failed to resend invitation email");
-  }
-
-  return await res.json();
+  return apiFetchJson(
+    `/api/billing/team/${memberId}/resend`,
+    { method: "POST" },
+    "Failed to resend invitation email"
+  );
 }
 
 /**
  * Update a collaborator's role with hierarchy enforcement
  */
 export async function apiUpdateTeamMemberRole(memberId: string, role: string): Promise<TeamResponse> {
-  const token = await getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/api/billing/team/${memberId}/role`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify({ role }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => null);
-    throw new Error(err?.message || "Failed to update collaborator role");
-  }
-
-  return await res.json();
+  return apiFetchJson(
+    `/api/billing/team/${memberId}/role`,
+    { method: "PATCH", body: { role } },
+    "Failed to update collaborator role"
+  );
 }
 
 export interface WorkspaceCollaboration {
@@ -1230,16 +1009,7 @@ export interface WorkspaceCollaboration {
 export async function apiGetCollaborations(): Promise<WorkspaceCollaboration[]> {
   const token = await getAuthToken();
   if (!token) return [];
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/billing/collaborations`, {
-      headers: authHeaders(token),
-      cache: "no-store",
-    });
-    if (res.ok) return await res.json();
-  } catch {
-    // Return empty list
-  }
-  return [];
+  return apiFetchOptional<WorkspaceCollaboration[]>("/api/billing/collaborations", []);
 }
 
 /**
@@ -1248,18 +1018,11 @@ export async function apiGetCollaborations(): Promise<WorkspaceCollaboration[]> 
 export async function apiAcceptCollaboration(
   memberId: string
 ): Promise<{ success: boolean; collaboration: WorkspaceCollaboration }> {
-  const token = await getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/api/billing/collaborations/accept/${memberId}`, {
-    method: "POST",
-    headers: authHeaders(token),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => null);
-    throw new Error(err?.message || "Failed to accept collaboration");
-  }
-
-  return await res.json();
+  return apiFetchJson(
+    `/api/billing/collaborations/accept/${memberId}`,
+    { method: "POST" },
+    "Failed to accept collaboration"
+  );
 }
 
 /**
@@ -1268,18 +1031,11 @@ export async function apiAcceptCollaboration(
 export async function apiDeclineCollaboration(
   memberId: string
 ): Promise<{ success: boolean }> {
-  const token = await getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/api/billing/collaborations/decline/${memberId}`, {
-    method: "POST",
-    headers: authHeaders(token),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => null);
-    throw new Error(err?.message || "Failed to decline collaboration");
-  }
-
-  return await res.json();
+  return apiFetchJson(
+    `/api/billing/collaborations/decline/${memberId}`,
+    { method: "POST" },
+    "Failed to decline collaboration"
+  );
 }
 
 /**
@@ -1288,20 +1044,12 @@ export async function apiDeclineCollaboration(
 export async function apiLeaveCollaboration(
   memberId: string
 ): Promise<{ success: boolean; message?: string }> {
-  const token = await getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/api/billing/collaborations/leave/${memberId}`, {
-    method: "POST",
-    headers: authHeaders(token),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => null);
-    throw new Error(err?.message || "Failed to leave workspace");
-  }
-
-  return await res.json();
+  return apiFetchJson(
+    `/api/billing/collaborations/leave/${memberId}`,
+    { method: "POST" },
+    "Failed to leave workspace"
+  );
 }
-
 
 // ============================================================================
 // Social Links Management APIs
@@ -1338,19 +1086,7 @@ export async function fetchSocialLinks(
   profileId: string
 ): Promise<SocialLinkItem[]> {
   if (!profileId) return [];
-  const token = await getAuthToken();
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/profiles/${profileId}/social-links`, {
-      headers: authHeaders(token),
-      cache: "no-store",
-    });
-    if (res.ok) {
-      return await res.json();
-    }
-  } catch {
-    // API unreachable
-  }
-  return [];
+  return apiFetchOptional<SocialLinkItem[]>(`/api/profiles/${profileId}/social-links`, []);
 }
 
 /**
@@ -1365,22 +1101,11 @@ export async function apiCreateSocialLink(
     isActive?: boolean;
   }
 ): Promise<SocialLinkItem> {
-  const token = await getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/api/profiles/${profileId}/social-links`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...authHeaders(token),
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => null);
-    throw new Error(err?.message || "Failed to create social link");
-  }
-
-  return await res.json();
+  return apiFetchJson(
+    `/api/profiles/${profileId}/social-links`,
+    { method: "POST", body: data },
+    "Failed to create social link"
+  );
 }
 
 /**
@@ -1396,25 +1121,11 @@ export async function apiUpdateSocialLink(
     isActive?: boolean;
   }
 ): Promise<SocialLinkItem> {
-  const token = await getAuthToken();
-  const res = await fetch(
-    `${API_BASE_URL}/api/profiles/${profileId}/social-links/${linkId}`,
-    {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...authHeaders(token),
-      },
-      body: JSON.stringify(data),
-    }
+  return apiFetchJson(
+    `/api/profiles/${profileId}/social-links/${linkId}`,
+    { method: "PATCH", body: data },
+    "Failed to update social link"
   );
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => null);
-    throw new Error(err?.message || "Failed to update social link");
-  }
-
-  return await res.json();
 }
 
 /**
@@ -1424,21 +1135,11 @@ export async function apiDeleteSocialLink(
   profileId: string,
   linkId: string
 ): Promise<{ success: boolean }> {
-  const token = await getAuthToken();
-  const res = await fetch(
-    `${API_BASE_URL}/api/profiles/${profileId}/social-links/${linkId}`,
-    {
-      method: "DELETE",
-      headers: authHeaders(token),
-    }
+  return apiFetchJson(
+    `/api/profiles/${profileId}/social-links/${linkId}`,
+    { method: "DELETE" },
+    "Failed to delete social link"
   );
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => null);
-    throw new Error(err?.message || "Failed to delete social link");
-  }
-
-  return await res.json();
 }
 
 /**
@@ -1448,23 +1149,9 @@ export async function apiReorderSocialLinks(
   profileId: string,
   items: Array<{ id: string; position: number }>
 ): Promise<{ success: boolean }> {
-  const token = await getAuthToken();
-  const res = await fetch(
-    `${API_BASE_URL}/api/profiles/${profileId}/social-links/reorder`,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        ...authHeaders(token),
-      },
-      body: JSON.stringify({ items }),
-    }
+  return apiFetchJson(
+    `/api/profiles/${profileId}/social-links/reorder`,
+    { method: "PUT", body: { items } },
+    "Failed to reorder social links"
   );
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => null);
-    throw new Error(err?.message || "Failed to reorder social links");
-  }
-
-  return await res.json();
 }
