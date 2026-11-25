@@ -182,6 +182,39 @@ export class ProfileService {
   }
 
   /**
+   * Returns published, indexable creator handles for dynamic sitemap generation (Redis cached 10m).
+   */
+  async getSitemapHandles(): Promise<Array<{ username: string; updatedAt: string }>> {
+    const cacheKey = 'sitemap:handles';
+    const cached = await this.redis.get<Array<{ username: string; updatedAt: string }>>(cacheKey);
+    if (Array.isArray(cached)) {
+      return cached;
+    }
+
+    const profiles = await this.prisma.profile.findMany({
+      where: {
+        isPublished: true,
+        searchIndexing: true,
+        user: { isBanned: false },
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: 500,
+      select: {
+        username: true,
+        updatedAt: true,
+      },
+    });
+
+    const formatted = profiles.map((p) => ({
+      username: p.username,
+      updatedAt: p.updatedAt ? new Date(p.updatedAt).toISOString() : new Date().toISOString(),
+    }));
+
+    await this.redis.set(cacheKey, formatted, 600);
+    return formatted;
+  }
+
+  /**
    * Fetches profile by user ID for the authenticated user session.
    */
   async getProfileByUserId(userId: string) {

@@ -17,10 +17,13 @@ import {
   ChevronUp,
   Globe,
   StickyNote,
+  Loader2,
+  Tags,
 } from "lucide-react";
 import { StudioLinkItem } from "./LinkCard";
 import { AVAILABLE_LINK_ICONS } from "./IconHelper";
 import { isValidWebUrl } from "@repo/shared";
+import { apiExtractUrlMetadata } from "@/lib/api-client";
 
 export interface AddEditLinkModalProps {
   isOpen: boolean;
@@ -71,6 +74,45 @@ const TIP_PRESETS = [
 ];
 
 const SUGGESTED_TIP_BADGES = ["☕ $3 Coffee", "☕☕ $5 Duo", "🍩 $10 Supporter", "0% FEE"];
+
+const UTM_PRESETS = [
+  { label: "Instagram Bio", source: "instagram", medium: "social", campaign: "link_in_bio" },
+  { label: "TikTok Bio", source: "tiktok", medium: "social", campaign: "profile_bio" },
+  { label: "YouTube", source: "youtube", medium: "video", campaign: "description" },
+  { label: "Newsletter", source: "newsletter", medium: "email", campaign: "weekly_issue" },
+];
+
+function parseUtmFromUrl(rawUrl: string): { source: string; medium: string; campaign: string } {
+  try {
+    const normalized = rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`;
+    const parsed = new URL(normalized);
+    return {
+      source: parsed.searchParams.get("utm_source") || "",
+      medium: parsed.searchParams.get("utm_medium") || "",
+      campaign: parsed.searchParams.get("utm_campaign") || "",
+    };
+  } catch {
+    return { source: "", medium: "", campaign: "" };
+  }
+}
+
+function buildUrlWithUtm(rawUrl: string, source: string, medium: string, campaign: string): string {
+  if (!rawUrl.trim()) return rawUrl;
+  try {
+    const hasProto = rawUrl.startsWith("http://") || rawUrl.startsWith("https://");
+    const parsed = new URL(hasProto ? rawUrl : `https://${rawUrl}`);
+    const assignOrDelete = (key: string, val: string) => {
+      if (val.trim()) parsed.searchParams.set(key, val.trim());
+      else parsed.searchParams.delete(key);
+    };
+    assignOrDelete("utm_source", source);
+    assignOrDelete("utm_medium", medium);
+    assignOrDelete("utm_campaign", campaign);
+    return parsed.toString();
+  } catch {
+    return rawUrl;
+  }
+}
 
 function AddEditLinkForm({
   onClose,
@@ -123,8 +165,65 @@ function AddEditLinkForm({
         initialItem?.isAgeRestricted
     )
   );
+  const initialUtm = parseUtmFromUrl(initialItem?.url ?? "");
+  const [showUtmBuilder, setShowUtmBuilder] = useState(
+    Boolean(initialUtm.source || initialUtm.medium || initialUtm.campaign)
+  );
+  const [utmSource, setUtmSource] = useState(initialUtm.source);
+  const [utmMedium, setUtmMedium] = useState(initialUtm.medium);
+  const [utmCampaign, setUtmCampaign] = useState(initialUtm.campaign);
+  const [fetchedThumbnail, setFetchedThumbnail] = useState<string | null>(
+    initialItem?.thumbnailUrl?.startsWith("http") ? initialItem.thumbnailUrl : null
+  );
+  const [isExtractingMeta, setIsExtractingMeta] = useState(false);
+  const [metaHint, setMetaHint] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleUrlInputChange = (nextUrl: string) => {
+    setUrl(nextUrl);
+    setMetaHint(null);
+    const parsed = parseUtmFromUrl(nextUrl);
+    setUtmSource(parsed.source);
+    setUtmMedium(parsed.medium);
+    setUtmCampaign(parsed.campaign);
+  };
+
+  const handleUtmChange = (nextSource: string, nextMedium: string, nextCampaign: string) => {
+    setUtmSource(nextSource);
+    setUtmMedium(nextMedium);
+    setUtmCampaign(nextCampaign);
+    if (isValidWebUrl(url)) {
+      setUrl(buildUrlWithUtm(url, nextSource, nextMedium, nextCampaign));
+    }
+  };
+
+  const handleAutoFillMetadata = async () => {
+    if (!isValidWebUrl(url)) {
+      setMetaHint("Enter a valid destination URL first.");
+      return;
+    }
+    setIsExtractingMeta(true);
+    setMetaHint(null);
+    try {
+      const meta = await apiExtractUrlMetadata(url.trim());
+      if (meta.title) {
+        setTitle(meta.title);
+      }
+      if (meta.imageUrl) {
+        setFetchedThumbnail(meta.imageUrl);
+      }
+      if (meta.title || meta.imageUrl) {
+        setMetaHint("Metadata imported from destination page.");
+      } else {
+        setMetaHint("No OpenGraph tags returned; you can enter title manually.");
+      }
+    } catch (err: unknown) {
+      setMetaHint(err instanceof Error ? err.message : "Could not extract page metadata.");
+    } finally {
+      setIsExtractingMeta(false);
+    }
+  };
 
   const applyTipPreset = (preset: (typeof TIP_PRESETS)[0]) => {
     setTitle(preset.defaultTitle);
@@ -171,7 +270,7 @@ function AddEditLinkForm({
 
     const computedThumbnailUrl =
       selectedIcon === "auto"
-        ? (initialItem?.thumbnailUrl?.startsWith("http") ? initialItem.thumbnailUrl : null)
+        ? fetchedThumbnail
         : `icon:${selectedIcon}`;
 
     try {
@@ -501,13 +600,29 @@ function AddEditLinkForm({
         {(type === "LINK" || type === "DONATION") && (
           <>
             <div>
-              <label className="block text-xs font-mono uppercase text-zinc-400 mb-1.5">
-                {type === "DONATION" ? "Payment or Tip Link (Stripe, Ko-fi, PayPal, Buymeacoffee)" : "Destination URL"}
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-mono uppercase text-zinc-400">
+                  {type === "DONATION" ? "Payment or Tip Link (Stripe, Ko-fi, PayPal, Buymeacoffee)" : "Destination URL"}
+                </label>
+                <button
+                  type="button"
+                  onClick={handleAutoFillMetadata}
+                  disabled={isExtractingMeta || !isValidWebUrl(url)}
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-zinc-800 hover:bg-zinc-700 border border-white/10 text-[11px] font-mono text-zinc-200 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  title="Auto-fill link title and preview image from OpenGraph metadata"
+                >
+                  {isExtractingMeta ? (
+                    <Loader2 className="w-3 h-3 animate-spin text-emerald-400" />
+                  ) : (
+                    <Sparkles className="w-3 h-3 text-emerald-400" />
+                  )}
+                  <span>{isExtractingMeta ? "Scanning..." : "Auto-fill"}</span>
+                </button>
+              </div>
               <input
                 type="text"
                 value={url}
-                onChange={(e) => setUrl(e.target.value)}
+                onChange={(e) => handleUrlInputChange(e.target.value)}
                 placeholder={
                   type === "DONATION"
                     ? "https://buymeacoffee.com/yourhandle or https://buy.stripe.com/..."
@@ -519,6 +634,11 @@ function AddEditLinkForm({
                     : "border-white/10 focus:border-zinc-400"
                 }`}
               />
+              {metaHint && (
+                <p className="mt-1.5 text-[11px] font-mono text-emerald-400/90">
+                  {metaHint}
+                </p>
+              )}
               {url.trim() && !isValidWebUrl(url) && (
                 <p className="mt-1.5 text-xs text-amber-400/90 flex items-center gap-1.5 font-mono">
                   <AlertCircle className="w-3.5 h-3.5 shrink-0" />
@@ -526,6 +646,66 @@ function AddEditLinkForm({
                 </p>
               )}
             </div>
+
+            {type === "LINK" && (
+              <div className="rounded-xl bg-zinc-900/60 border border-white/5 px-3.5 py-2">
+                <button
+                  type="button"
+                  onClick={() => setShowUtmBuilder(!showUtmBuilder)}
+                  className="w-full py-1 flex items-center justify-between text-xs font-mono text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <span className="flex items-center gap-2">
+                    <Tags className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>UTM Campaign Builder</span>
+                  </span>
+                  {showUtmBuilder ? (
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  )}
+                </button>
+
+                {showUtmBuilder && (
+                  <div className="mt-2.5 pt-2.5 border-t border-white/5 space-y-2.5 text-xs">
+                    <div className="flex flex-wrap gap-1.5">
+                      {UTM_PRESETS.map((preset) => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => handleUtmChange(preset.source, preset.medium, preset.campaign)}
+                          className="px-2 py-0.5 rounded-full bg-zinc-800 hover:bg-zinc-700 border border-white/10 text-[10px] font-mono text-zinc-300 cursor-pointer"
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <input
+                        type="text"
+                        value={utmSource}
+                        onChange={(e) => handleUtmChange(e.target.value, utmMedium, utmCampaign)}
+                        placeholder="utm_source"
+                        className="px-2.5 py-1.5 rounded-lg bg-zinc-950 border border-white/10 text-white text-[11px] font-mono focus:outline-none focus:border-zinc-400"
+                      />
+                      <input
+                        type="text"
+                        value={utmMedium}
+                        onChange={(e) => handleUtmChange(utmSource, e.target.value, utmCampaign)}
+                        placeholder="utm_medium"
+                        className="px-2.5 py-1.5 rounded-lg bg-zinc-950 border border-white/10 text-white text-[11px] font-mono focus:outline-none focus:border-zinc-400"
+                      />
+                      <input
+                        type="text"
+                        value={utmCampaign}
+                        onChange={(e) => handleUtmChange(utmSource, utmMedium, e.target.value)}
+                        placeholder="utm_campaign"
+                        className="px-2.5 py-1.5 rounded-lg bg-zinc-950 border border-white/10 text-white text-[11px] font-mono focus:outline-none focus:border-zinc-400"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div>
               <div className="flex items-center justify-between mb-1.5">

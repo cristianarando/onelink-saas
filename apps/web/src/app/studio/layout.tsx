@@ -18,6 +18,7 @@ import {
   ChevronDown,
   User,
   Settings,
+  QrCode,
 } from "lucide-react";
 import {
   fetchCurrentUser,
@@ -31,6 +32,7 @@ import {
   WorkspaceCollaboration,
 } from "@/lib/api-client";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { QrCodeModal } from "@/components/studio/QrCodeModal";
 
 interface StudioLayoutProps {
   children: React.ReactNode;
@@ -56,6 +58,7 @@ export default function StudioLayout({ children }: StudioLayoutProps) {
   const [isProcessingCollab, setIsProcessingCollab] = useState<string | null>(null);
   const [leaveTarget, setLeaveTarget] = useState<WorkspaceCollaboration | null>(null);
   const [layoutError, setLayoutError] = useState<string | null>(null);
+  const [isQrStudioOpen, setIsQrStudioOpen] = useState(false);
 
   const [profileAvatarOverride, setProfileAvatarOverride] = useState<string | null>(null);
 
@@ -531,6 +534,17 @@ export default function StudioLayout({ children }: StudioLayoutProps) {
             </span>
           </Link>
 
+          {/* Share & QR Action Cluster */}
+          <button
+            type="button"
+            onClick={() => setIsQrStudioOpen(true)}
+            className="p-2 rounded-full text-zinc-300 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-white/10 transition-all cursor-pointer"
+            title="Open QR Code Studio"
+            aria-label="Open QR Code Studio"
+          >
+            <QrCode className="w-4 h-4" />
+          </button>
+
           {/* Share Action Button with Toast Feedback */}
           <div className="relative inline-block shrink-0">
             <button
@@ -645,6 +659,13 @@ export default function StudioLayout({ children }: StudioLayoutProps) {
         loading={Boolean(leaveTarget && isProcessingCollab === leaveTarget.id)}
         onConfirm={confirmLeaveWorkspace}
         onCancel={() => setLeaveTarget(null)}
+      />
+
+      <QrCodeModal
+        isOpen={isQrStudioOpen}
+        onClose={() => setIsQrStudioOpen(false)}
+        profileUrl={profileUrl}
+        username={username}
       />
     </div>
   );
