@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { UserPlus, ShieldCheck, X, Check, Copy, Mail, CheckCircle2 } from "lucide-react";
 import {
   TeamMember,
@@ -33,6 +33,18 @@ export const TeamGovernanceSection: React.FC<TeamGovernanceSectionProps> = ({
     inviteUrl: string;
   } | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
+
+  useEffect(() => {
+    if (!isInviteOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsInviteOpen(false);
+        setInviteResult(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isInviteOpen]);
 
   const usedSeats = members.length;
   const pct = Math.min(Math.round((usedSeats / maxSeats) * 100), 100);
@@ -318,10 +330,22 @@ export const TeamGovernanceSection: React.FC<TeamGovernanceSectionProps> = ({
 
       {/* Invite Modal */}
       {isInviteOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#121215] border border-white/10 rounded-2xl p-6 max-w-md w-full space-y-5 shadow-2xl">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="invite-collaborator-title"
+          onClick={() => {
+            setIsInviteOpen(false);
+            setInviteResult(null);
+          }}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[#121215] border border-white/10 rounded-2xl p-6 max-w-md w-full space-y-5 shadow-2xl"
+          >
             <div className="flex items-center justify-between pb-3 border-b border-white/5">
-              <h3 className="text-base font-bold text-white flex items-center space-x-2">
+              <h3 id="invite-collaborator-title" className="text-base font-bold text-white flex items-center space-x-2">
                 <UserPlus className="w-4 h-4 text-white" />
                 <span>Invite Workspace Collaborator</span>
               </h3>

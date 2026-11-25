@@ -180,7 +180,13 @@ export default function Home() {
         </p>
 
         {/* Claim Vanity Slug Input & Direct CTA */}
-        <div className="w-full max-w-lg flex flex-col sm:flex-row items-center gap-2 p-1.5 rounded-2xl bg-zinc-900/90 border border-white/10 shadow-2xl shadow-black/60 mb-4">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            router.push(`/register?username=${encodeURIComponent(claimSlug.replace(/^@/, "").trim())}`);
+          }}
+          className="w-full max-w-lg flex flex-col sm:flex-row items-center gap-2 p-1.5 rounded-2xl bg-zinc-900/90 border border-white/10 shadow-2xl shadow-black/60 mb-4"
+        >
           <div className="flex items-center gap-1.5 px-4 py-2.5 w-full text-sm text-zinc-400 font-mono">
             <span className="text-zinc-500 font-mono">onelink.bio/</span>
             <input
@@ -188,6 +194,7 @@ export default function Home() {
               value={claimSlug}
               onChange={(e) => setClaimSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))}
               placeholder="yourname"
+              aria-label="Claim your handle"
               className="w-full bg-transparent text-white focus:outline-none placeholder:text-zinc-600 font-mono"
             />
             {isCheckingSlug && (
@@ -213,14 +220,14 @@ export default function Home() {
               </span>
             )}
           </div>
-          <Link
-            href={`/register?username=${encodeURIComponent(claimSlug.replace(/^@/, "").trim())}`}
+          <button
+            type="submit"
             className="w-full sm:w-auto whitespace-nowrap px-6 py-3 rounded-xl bg-white text-zinc-950 font-semibold text-sm flex items-center justify-center gap-2 hover:bg-zinc-200 tactile-press transition-all cursor-pointer shadow-md"
           >
             <span>Claim Handle</span>
             <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
+          </button>
+        </form>
 
         {/* 1-Click Google OAuth & Instant Sign-up Row */}
         <div className="flex flex-wrap items-center justify-center gap-3 mb-10 text-xs">

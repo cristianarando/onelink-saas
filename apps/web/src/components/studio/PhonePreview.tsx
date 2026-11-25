@@ -20,7 +20,7 @@ import {
 import { StudioLinkItem } from "./LinkCard";
 import { renderLinkIcon } from "./IconHelper";
 import { SocialIcon } from "@/components/profile/SocialIcon";
-import { isLightColor } from "@/lib/theme-contrast";
+import { isLightColor, resolveThemeFontFamily } from "@/lib/theme-contrast";
 
 export interface PhonePreviewTheme {
   bgType?: "SOLID" | "GRADIENT" | string;
@@ -130,7 +130,7 @@ export function PhonePreview({
     ? { backgroundImage: theme?.bgValue, backgroundColor: "#09090b" }
     : { backgroundColor: theme?.bgValue || "#0e0e10" };
   const previewTextColor = theme?.textColor || "#fafafa";
-  const previewFont = theme?.fontFamily ? `${theme.fontFamily}, sans-serif` : undefined;
+  const previewFont = resolveThemeFontFamily(theme?.fontFamily);
 
   const isPageLight = isLightColor(theme?.bgValue);
   const isEffectiveBtnLight =

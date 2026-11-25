@@ -8,6 +8,7 @@ import { ShareButton } from "@/components/profile/ShareButton";
 import { ProfileHeaderActions } from "@/components/profile/ProfileHeaderActions";
 import { PageViewTracker } from "@/components/profile/PageViewTracker";
 import { getApiBaseUrl } from "@/lib/api-config";
+import { resolveThemeFontFamily } from "@/lib/theme-contrast";
 
 interface ProfileData {
   id: string;
@@ -343,6 +344,7 @@ async function ProfileContent({
 
   const containerStyle: React.CSSProperties = {
     color: textColor,
+    fontFamily: resolveThemeFontFamily(activeTheme?.fontFamily),
     ...(bgType === "GRADIENT"
       ? { backgroundImage: bgValue }
       : { backgroundColor: bgValue }),

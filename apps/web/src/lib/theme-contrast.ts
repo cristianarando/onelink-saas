@@ -83,3 +83,25 @@ export function isLightColor(colorStr?: string | null): boolean {
 
   return false;
 }
+
+/**
+ * Resolves a creator's selected theme typeface to the loaded Next.js font CSS variable stack.
+ */
+export function resolveThemeFontFamily(fontFamily?: string | null): string {
+  switch ((fontFamily || "Geist").trim()) {
+    case "Space Grotesk":
+      return "var(--font-space-grotesk), sans-serif";
+    case "Inter":
+      return "var(--font-inter), sans-serif";
+    case "Plus Jakarta Sans":
+      return "var(--font-jakarta), sans-serif";
+    case "JetBrains Mono":
+      return "var(--font-jetbrains-mono), monospace";
+    case "Merriweather":
+    case "Serif":
+      return "var(--font-merriweather), Georgia, serif";
+    case "Geist":
+    default:
+      return "var(--font-geist-sans), sans-serif";
+  }
+}

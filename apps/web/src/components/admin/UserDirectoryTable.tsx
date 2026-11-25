@@ -9,6 +9,8 @@ import {
   ExternalLink,
   Check,
   Lock,
+  AlertTriangle,
+  X,
 } from "lucide-react";
 import {
   AdminUserItem,
@@ -16,6 +18,17 @@ import {
   apiSuspendUser,
   apiUpdateUserRole,
 } from "@/lib/api-client";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+
+interface PendingAdminAction {
+  type: "SUSPEND" | "DEMOTE_SELF";
+  user: AdminUserItem;
+  nextRole?: "CREATOR" | "SUPER_ADMIN" | "OWNER";
+  title: string;
+  description: string;
+  confirmLabel: string;
+  variant: "danger" | "warning";
+}
 
 interface UserDirectoryTableProps {
   users: AdminUserItem[];
@@ -32,35 +45,18 @@ export function UserDirectoryTable({
   const [filter, setFilter] = useState<"ALL" | "ACTIVE" | "BANNED" | "SUSPICIOUS">("ALL");
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const [errorNotice, setErrorNotice] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<PendingAdminAction | null>(null);
+
+  const showError = (msg: string) => {
+    setErrorNotice(msg);
+    setTimeout(() => setErrorNotice(null), 4500);
+  };
 
   const isOwner = currentUser?.role === "OWNER";
 
-  const handleSuspendToggle = async (user: AdminUserItem) => {
-    // Safety guard: Cannot suspend self
-    if (user.id === currentUser?.id) {
-      alert("You cannot suspend your own active account.");
-      return;
-    }
-
-    // Safety guard: Super Admin cannot suspend an Owner
-    if (user.role === "OWNER") {
-      alert("Platform OWNER accounts are immune to suspension.");
-      return;
-    }
-
-    // Safety guard: Only Owner can suspend a Super Admin
-    if (user.role === "SUPER_ADMIN" && !isOwner) {
-      alert("Only platform OWNER accounts can suspend a Super Admin.");
-      return;
-    }
-
+  const executeSuspendToggle = async (user: AdminUserItem) => {
     const isBanning = !user.isBanned;
-    const confirmMsg = isBanning
-      ? `Are you sure you want to suspend user ${user.email}? Their public links and vanity profile will be deactivated immediately.`
-      : `Reactivate account access for ${user.email}?`;
-
-    if (!window.confirm(confirmMsg)) return;
-
     setProcessingId(user.id);
     try {
       const ok = await apiSuspendUser(
@@ -79,36 +75,47 @@ export function UserDirectoryTable({
         setTimeout(() => setActionNotice(null), 3500);
         onRefresh();
       } else {
-        alert("Failed to update user account status. Please verify permissions.");
+        showError("Failed to update user account status. Please verify permissions.");
       }
     } catch {
-      alert("Network error updating user status.");
+      showError("Network error updating user status.");
     } finally {
       setProcessingId(null);
+      setPendingAction(null);
     }
   };
 
-  const handleRoleChange = async (
+  const handleSuspendToggle = (user: AdminUserItem) => {
+    if (user.id === currentUser?.id) {
+      showError("You cannot suspend your own active account.");
+      return;
+    }
+    if (user.role === "OWNER") {
+      showError("Platform OWNER accounts are immune to suspension.");
+      return;
+    }
+    if (user.role === "SUPER_ADMIN" && !isOwner) {
+      showError("Only platform OWNER accounts can suspend a Super Admin.");
+      return;
+    }
+
+    const isBanning = !user.isBanned;
+    setPendingAction({
+      type: "SUSPEND",
+      user,
+      title: isBanning ? `Suspend ${user.email}?` : `Reactivate ${user.email}?`,
+      description: isBanning
+        ? "Their public links and vanity profile will be deactivated immediately until reinstated."
+        : "Restore full access and republish this creator account.",
+      confirmLabel: isBanning ? "Suspend Account" : "Reactivate Account",
+      variant: isBanning ? "danger" : "warning",
+    });
+  };
+
+  const executeRoleChange = async (
     targetUser: AdminUserItem,
     newRole: "CREATOR" | "SUPER_ADMIN" | "OWNER"
   ) => {
-    if (targetUser.id === currentUser?.id && newRole !== "OWNER") {
-      const confirmDemote = window.confirm(
-        "Warning: Demoting your own active account will revoke your current administrator privileges. Proceed?"
-      );
-      if (!confirmDemote) return;
-    }
-
-    if (targetUser.role === "OWNER" && !isOwner) {
-      alert("Only an existing Platform OWNER can modify another OWNER account.");
-      return;
-    }
-
-    if (targetUser.role === "SUPER_ADMIN" && !isOwner) {
-      alert("Only a Platform OWNER can modify a Super Admin role.");
-      return;
-    }
-
     setProcessingId(targetUser.id);
     try {
       const ok = await apiUpdateUserRole(targetUser.id, newRole);
@@ -117,13 +124,43 @@ export function UserDirectoryTable({
         setTimeout(() => setActionNotice(null), 3500);
         onRefresh();
       } else {
-        alert("Failed to update role. Please check administrator permissions.");
+        showError("Failed to update role. Please check administrator permissions.");
       }
     } catch {
-      alert("Network error updating platform role.");
+      showError("Network error updating platform role.");
     } finally {
       setProcessingId(null);
+      setPendingAction(null);
     }
+  };
+
+  const handleRoleChange = (
+    targetUser: AdminUserItem,
+    newRole: "CREATOR" | "SUPER_ADMIN" | "OWNER"
+  ) => {
+    if (targetUser.role === "OWNER" && !isOwner) {
+      showError("Only an existing Platform OWNER can modify another OWNER account.");
+      return;
+    }
+    if (targetUser.role === "SUPER_ADMIN" && !isOwner) {
+      showError("Only a Platform OWNER can modify a Super Admin role.");
+      return;
+    }
+
+    if (targetUser.id === currentUser?.id && newRole !== "OWNER") {
+      setPendingAction({
+        type: "DEMOTE_SELF",
+        user: targetUser,
+        nextRole: newRole,
+        title: "Demote your own OWNER role?",
+        description: `Changing your role to ${newRole} will immediately revoke your current administrator privileges.`,
+        confirmLabel: "Proceed with Role Change",
+        variant: "danger",
+      });
+      return;
+    }
+
+    void executeRoleChange(targetUser, newRole);
   };
 
   // Filter and search
@@ -143,13 +180,29 @@ export function UserDirectoryTable({
 
   return (
     <div className="space-y-4">
-      {/* Action Notification Toast */}
+      {/* Action & Error Notification Toasts */}
       {actionNotice && (
         <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs flex items-center justify-between animate-in fade-in">
           <div className="flex items-center space-x-2">
             <Check className="w-4 h-4 text-purple-400" />
             <span>{actionNotice}</span>
           </div>
+        </div>
+      )}
+
+      {errorNotice && (
+        <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-300 text-xs flex items-center justify-between animate-in fade-in">
+          <div className="flex items-center space-x-2">
+            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>{errorNotice}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setErrorNotice(null)}
+            className="text-rose-400 hover:text-white p-1 cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 
@@ -443,6 +496,24 @@ export function UserDirectoryTable({
           </table>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingAction)}
+        title={pendingAction?.title || ""}
+        description={pendingAction?.description || ""}
+        confirmLabel={pendingAction?.confirmLabel || "Confirm"}
+        variant={pendingAction?.variant || "warning"}
+        loading={Boolean(pendingAction && processingId === pendingAction.user.id)}
+        onConfirm={() => {
+          if (!pendingAction) return;
+          if (pendingAction.type === "SUSPEND") {
+            void executeSuspendToggle(pendingAction.user);
+          } else if (pendingAction.nextRole) {
+            void executeRoleChange(pendingAction.user, pendingAction.nextRole);
+          }
+        }}
+        onCancel={() => setPendingAction(null)}
+      />
     </div>
   );
 }
