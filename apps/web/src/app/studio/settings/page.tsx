@@ -206,7 +206,11 @@ export default function StudioSettingsPage() {
     }
   };
 
-  const handleExportJSON = () => {
+  const handleExportJSON = async () => {
+    const fullProfile =
+      (await fetchMyProfile().catch(() => null)) ||
+      (username ? await fetchProfile(username).catch(() => null) : null);
+
     const backup = {
       profileId,
       username,
@@ -216,6 +220,10 @@ export default function StudioSettingsPage() {
       seoDesc,
       isPublished,
       searchIndexing,
+      theme: fullProfile?.theme || null,
+      customTheme: fullProfile?.customTheme || null,
+      links: fullProfile?.links || [],
+      socialLinks: fullProfile?.socialLinks || [],
       exportedAt: new Date().toISOString(),
     };
     const dataStr =
@@ -225,7 +233,7 @@ export default function StudioSettingsPage() {
     downloadAnchor.setAttribute("href", dataStr);
     downloadAnchor.setAttribute(
       "download",
-      `onelink-settings-${username}.json`
+      `onelink-settings-${username || "profile"}.json`
     );
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();

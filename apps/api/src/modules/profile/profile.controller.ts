@@ -48,6 +48,13 @@ export class ProfileController {
     return await this.profileService.getProfileByUserId(user.id);
   }
 
+  @Get('sitemap-handles')
+  @ApiOperation({ summary: 'List public indexable creator handles for dynamic XML sitemap generation' })
+  @ApiResponse({ status: 200, description: 'List of published indexable usernames' })
+  async getSitemapHandles() {
+    return await this.profileService.getSitemapHandles();
+  }
+
   @Get('check-username/:username')
   @ApiOperation({ summary: 'Check if a vanity username handle is valid and available' })
   @ApiResponse({ status: 200, description: 'Availability status' })

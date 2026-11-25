@@ -280,6 +280,23 @@ export async function apiUpdateLink(
   );
 }
 
+export interface ExtractedUrlMetadata {
+  title: string | null;
+  description: string | null;
+  imageUrl: string | null;
+}
+
+/**
+ * Extract OpenGraph metadata (title, description, thumbnail) for a destination URL
+ */
+export async function apiExtractUrlMetadata(url: string): Promise<ExtractedUrlMetadata> {
+  return apiFetchJson<ExtractedUrlMetadata>(
+    "/api/links/extract-metadata",
+    { method: "POST", body: { url } },
+    "Unable to fetch metadata from target URL."
+  );
+}
+
 /**
  * Unlock a password/PIN protected link
  */

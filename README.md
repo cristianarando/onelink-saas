@@ -32,6 +32,7 @@
 | **Database** | [PostgreSQL 16](https://www.postgresql.org/) + [TimescaleDB](https://www.timescale.com/) | Relational core + time-series tables for telemetry & analytics |
 | **Cache & Blocklists** | [Redis 7](https://redis.io/) (`ioredis`) | Profile JSON cache-aside (`<15ms`), `O(1)` domain blocklists & session revocation |
 | **ML Threat Defense** | [ONNX Runtime](https://onnxruntime.ai/) (`onnxruntime-node`) | In-process Random Forest URL classifier trained on 235k PhiUSIIL URLs (`<18ms`) |
+| **Creator Studio Tools** | Custom QR Studio, OpenGraph Auto-Fill & UTM Builder | Vector SVG/1024px PNG QR export, SSRF-guarded metadata scraping & attribution builder |
 | **Data Modeling & Validation** | [Prisma 7.10](https://www.prisma.io/) (`@prisma/adapter-pg`) + [Zod 3.24+](https://zod.dev/) | End-to-end type safety and shared request validation |
 | **Billing & Payments** | [Stripe SDK](https://stripe.com/) | Checkout sessions, webhooks, Customer Portal, VAT PDF invoices & dev sandbox |
 | **Local Infrastructure** | [Docker Compose](https://www.docker.com/) | Containerized TimescaleDB, Redis, and Mailhog |

@@ -89,3 +89,8 @@ export class ReorderLinksDto {
   @ApiProperty({ type: [ReorderItemDto] })
   items!: ReorderItemDto[];
 }
+
+export class ExtractUrlMetadataDto {
+  @ApiProperty({ example: 'https://github.com/cristianarando/onelink-saas' })
+  url!: string;
+}

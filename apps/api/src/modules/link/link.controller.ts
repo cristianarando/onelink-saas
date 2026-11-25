@@ -14,13 +14,24 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import type { Request } from 'express';
-import { CreateLinkSchema, UpdateLinkSchema, ReorderLinksSchema, UnlockLinkSchema } from '@repo/shared';
+import {
+  CreateLinkSchema,
+  UpdateLinkSchema,
+  ReorderLinksSchema,
+  UnlockLinkSchema,
+  ExtractUrlMetadataSchema,
+} from '@repo/shared';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RateLimitGuard, RateLimit } from '../../common/guards/rate-limit.guard';
 import { CurrentUser, AuthenticatedUser } from '../auth/decorators/current-user.decorator';
 import { LinkService } from './link.service';
-import { CreateLinkDto, UpdateLinkDto, ReorderLinksDto } from './dto/link.dto';
+import {
+  CreateLinkDto,
+  UpdateLinkDto,
+  ReorderLinksDto,
+  ExtractUrlMetadataDto,
+} from './dto/link.dto';
 
 export class UnlockLinkDto {
   password!: string;
@@ -30,6 +41,17 @@ export class UnlockLinkDto {
 @Controller('links')
 export class LinkController {
   constructor(private readonly linkService: LinkService) {}
+
+  @Post('extract-metadata')
+  @UseGuards(JwtAuthGuard, RateLimitGuard)
+  @RateLimit(15, 60)
+  @ApiBearerAuth()
+  @UsePipes(new ZodValidationPipe(ExtractUrlMetadataSchema))
+  @ApiOperation({ summary: 'Extract OpenGraph title and thumbnail metadata from a public URL' })
+  @ApiResponse({ status: 200, description: 'Metadata returned safely' })
+  async extractMetadata(@Body() dto: ExtractUrlMetadataDto) {
+    return await this.linkService.extractMetadata(dto.url);
+  }
 
   @Post('profile/:profileId')
   @UseGuards(JwtAuthGuard)

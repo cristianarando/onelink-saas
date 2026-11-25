@@ -13,6 +13,7 @@ import { SentinelAiService } from '../sentinel-ai/sentinel-ai.service';
 import { ProfileAccessService, CollaboratorPermissionLevel } from '../../common/services/profile-access.service';
 import { CreateLinkDto, UpdateLinkDto, ReorderItemDto } from './dto/link.dto';
 import { isValidWebUrl } from '@repo/shared';
+import { fetchUrlMetadata, UrlMetadataResult } from './url-metadata.util';
 
 @Injectable()
 export class LinkService {
@@ -508,5 +509,18 @@ export class LinkService {
 
     await this.invalidateProfileCache(profile.username);
     return results;
+  }
+
+  /**
+   * Fetches OpenGraph title, description, and thumbnail image with strict SSRF protection.
+   */
+  async extractMetadata(url: string): Promise<UrlMetadataResult> {
+    try {
+      return await fetchUrlMetadata(url);
+    } catch (err: unknown) {
+      if (err instanceof BadRequestException) throw err;
+      this.logger.debug(`Metadata extraction skipped for ${url}: ${err instanceof Error ? err.message : err}`);
+      return { title: null, description: null, imageUrl: null };
+    }
   }
 }
