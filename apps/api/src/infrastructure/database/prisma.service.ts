@@ -19,6 +19,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   async onModuleInit() {
+    if (process.env.NODE_ENV === 'test') {
+      this.logger.debug('Test environment detected; skipping runtime DDL schema sync');
+      return;
+    }
     await this.$connect();
     this.logger.log('Successfully connected to PostgreSQL (TimescaleDB)');
     await this.ensureSchemaSync();

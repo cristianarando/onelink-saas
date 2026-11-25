@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Heading, Minus, Sparkles, ArrowUpDown, Lock, Coffee, X, CheckCircle2, Sliders, Eye, StickyNote } from "lucide-react";
+import { Plus, Heading, Minus, Sparkles, ArrowUpDown, Lock, Coffee, X, CheckCircle2, Sliders, Eye, StickyNote, AlertTriangle } from "lucide-react";
 import { LinkCard, StudioLinkItem } from "@/components/studio/LinkCard";
 import { AddEditLinkModal } from "@/components/studio/AddEditLinkModal";
 import { PhonePreview, PhonePreviewTheme } from "@/components/studio/PhonePreview";
@@ -43,6 +43,7 @@ export default function StudioLinksPage() {
   const [activeTheme, setActiveTheme] = useState<PhonePreviewTheme | null>(null);
   const [mobileTab, setMobileTab] = useState<"editor" | "preview">("editor");
   const [socialLinks, setSocialLinks] = useState<SocialLinkItem[]>([]);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Auto-archive configuration state
   const [isAutoArchiveModalOpen, setIsAutoArchiveModalOpen] = useState(false);
@@ -56,6 +57,8 @@ export default function StudioLinksPage() {
   useEffect(() => {
     let isMounted = true;
     const loadData = async () => {
+      let targetProfileId = "";
+      let targetUsername = "";
       try {
         const [userSession, sub] = await Promise.all([
           fetchCurrentUser(),
@@ -64,9 +67,6 @@ export default function StudioLinksPage() {
         if (sub && isMounted) {
           setSubscription(sub);
         }
-
-        let targetProfileId = "";
-        let targetUsername = "";
 
         // Check if user selected an active workspace
         const activeWs = localStorage.getItem("onelink_active_workspace");
@@ -88,7 +88,7 @@ export default function StudioLinksPage() {
                   id: "plan_enterprise",
                   name: "Enterprise Studio",
                   code: parsedWs.ownerPlan || "ENTERPRISE",
-                  priceCents: 19900,
+                  priceCents: 500,
                   interval: "MONTHLY",
                   features: { maxLinks: 9999, customDomains: true, removeBranding: true, customThemes: true },
                 },
@@ -173,13 +173,15 @@ export default function StudioLinksPage() {
           .catch(() => {});
 
         // Fetch all studio links (both active and inactive) directly
-        const allLinks = await fetchProfileLinks(targetProfileId);
+        const resolvedProfileId = fullProfile?.id || targetProfileId;
+        const allLinks = await fetchProfileLinks(resolvedProfileId);
         if (Array.isArray(allLinks) && isMounted) {
           interface ApiLinkItem {
             id: string;
             title: string;
             url?: string | null;
-            type: "LINK" | "HEADER" | "DIVIDER" | "DONATION";
+            content?: string | null;
+            type: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE";
             position: number;
             thumbnailUrl?: string | null;
             badge?: string | null;
@@ -193,7 +195,8 @@ export default function StudioLinksPage() {
           const mapped: StudioLinkItem[] = allLinks.map((l: ApiLinkItem) => ({
             id: l.id,
             title: l.title,
-            url: l.url || "#",
+            url: l.type === "NOTE" ? "#" : (l.url || "#"),
+            content: l.content ?? (l.type === "NOTE" && l.url && l.url !== "#" ? l.url : undefined),
             type: l.type,
             thumbnailUrl: l.thumbnailUrl,
             badge: l.badge || undefined,
@@ -208,18 +211,21 @@ export default function StudioLinksPage() {
           mapped.sort((a, b) => a.position - b.position);
           setItems(mapped);
           try {
-            localStorage.setItem("onelink_studio_items", JSON.stringify(mapped));
+            if (resolvedProfileId) {
+              localStorage.setItem(`onelink_studio_items_${resolvedProfileId}`, JSON.stringify(mapped));
+            }
           } catch {
             // Ignore
           }
           return;
         }
       } catch {
-        // API not reachable, try localStorage
+        // API not reachable, try profile-scoped localStorage
       }
 
       try {
-        const saved = localStorage.getItem("onelink_studio_items");
+        const scopedKey = targetProfileId ? `onelink_studio_items_${targetProfileId}` : null;
+        const saved = scopedKey ? localStorage.getItem(scopedKey) : null;
         if (saved && isMounted) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
@@ -257,11 +263,13 @@ export default function StudioLinksPage() {
     };
   }, [router]);
 
-  // Save to localStorage whenever items change
-  const updateItems = (newItems: StudioLinkItem[]) => {
+  // Save to profile-scoped localStorage whenever items change
+  const updateItems = (newItems: StudioLinkItem[], overrideProfileId?: string) => {
     setItems(newItems);
+    const targetPid = overrideProfileId || profileId;
+    if (!targetPid) return;
     try {
-      localStorage.setItem("onelink_studio_items", JSON.stringify(newItems));
+      localStorage.setItem(`onelink_studio_items_${targetPid}`, JSON.stringify(newItems));
     } catch {
       // Ignore
     }
@@ -341,6 +349,7 @@ export default function StudioLinksPage() {
 
   // Toggle active state with database mutation
   const handleToggleActive = async (id: string) => {
+    const previousItems = items;
     const targetItem = items.find((i) => i.id === id);
     const newActiveState = targetItem ? !targetItem.isActive : true;
 
@@ -358,14 +367,17 @@ export default function StudioLinksPage() {
     if (activeProfileId) {
       try {
         await apiUpdateLink(id, activeProfileId, { isActive: newActiveState });
-      } catch {
-        // Optimistic update retained
+        setActionError(null);
+      } catch (err: unknown) {
+        updateItems(previousItems, activeProfileId);
+        setActionError(err instanceof Error ? err.message : "Failed to update link visibility.");
       }
     }
   };
 
   // Duplicate item
   const handleDuplicate = async (item: StudioLinkItem) => {
+    const previousItems = items;
     const activeProfileId = await getActiveProfileId();
     const tempId = `temp-${Date.now()}`;
     const newItem: StudioLinkItem = {
@@ -379,13 +391,14 @@ export default function StudioLinksPage() {
     const targetIdx = items.findIndex((i) => i.id === item.id);
     updated.splice(targetIdx + 1, 0, newItem);
     const reindexed = updated.map((it, idx) => ({ ...it, position: idx }));
-    updateItems(reindexed);
+    updateItems(reindexed, activeProfileId);
 
     if (activeProfileId) {
       try {
         const created = await apiCreateLink(activeProfileId, {
           title: newItem.title,
           url: newItem.url,
+          content: newItem.content,
           type: newItem.type,
           thumbnailUrl: newItem.thumbnailUrl,
           badge: newItem.badge,
@@ -397,17 +410,20 @@ export default function StudioLinksPage() {
         });
         if (created?.id) {
           const finalItems = reindexed.map((it) => (it.id === tempId ? { ...it, id: created.id } : it));
-          updateItems(finalItems);
+          updateItems(finalItems, activeProfileId);
+          setActionError(null);
           await apiReorderLinks(activeProfileId, finalItems.map((it) => it.id)).catch(() => {});
         }
-      } catch {
-        // Retain optimistic
+      } catch (err: unknown) {
+        updateItems(previousItems, activeProfileId);
+        setActionError(err instanceof Error ? err.message : "Failed to duplicate link.");
       }
     }
   };
 
   // Delete item with database mutation
   const handleDelete = async (id: string) => {
+    const previousItems = items;
     const updated = items.filter((item) => item.id !== id);
     const reindexed = updated.map((it, idx) => ({ ...it, position: idx }));
     updateItems(reindexed);
@@ -415,10 +431,15 @@ export default function StudioLinksPage() {
     const activeProfileId = await getActiveProfileId();
     if (activeProfileId) {
       try {
-        await apiDeleteLink(id, activeProfileId);
+        const ok = await apiDeleteLink(id, activeProfileId);
+        if (!ok) {
+          throw new Error("Server failed to delete this link.");
+        }
+        setActionError(null);
         await apiReorderLinks(activeProfileId, reindexed.map((it) => it.id)).catch(() => {});
-      } catch {
-        // Retain optimistic
+      } catch (err: unknown) {
+        updateItems(previousItems, activeProfileId);
+        setActionError(err instanceof Error ? err.message : "Failed to delete link.");
       }
     }
   };
@@ -464,6 +485,7 @@ export default function StudioLinksPage() {
       await apiUpdateLink(data.id, activeProfileId, {
         title: data.title,
         url: data.url,
+        content: data.content ?? null,
         type: data.type,
         thumbnailUrl: data.thumbnailUrl,
         badge: data.badge,
@@ -480,7 +502,8 @@ export default function StudioLinksPage() {
           ? {
               ...it,
               title: data.title,
-              url: data.url,
+              url: data.type === "NOTE" ? "#" : data.url,
+              content: data.content,
               type: data.type,
               thumbnailUrl: data.thumbnailUrl,
               isActive: data.isActive,
@@ -493,12 +516,13 @@ export default function StudioLinksPage() {
             }
           : it
       );
-      updateItems(updated);
+      updateItems(updated, activeProfileId);
     } else {
       // Create new link
       const created = await apiCreateLink(activeProfileId, {
         title: data.title,
         url: data.url,
+        content: data.content ?? null,
         type: data.type,
         thumbnailUrl: data.thumbnailUrl,
         badge: data.badge,
@@ -512,7 +536,8 @@ export default function StudioLinksPage() {
       const newItem: StudioLinkItem = {
         id: created.id,
         title: created.title || data.title,
-        url: created.url || data.url,
+        url: data.type === "NOTE" ? "#" : (created.url || data.url),
+        content: created.content ?? data.content,
         type: (created.type as StudioLinkItem["type"]) || data.type,
         thumbnailUrl: created.thumbnailUrl || data.thumbnailUrl,
         isActive: created.isActive ?? data.isActive ?? true,
@@ -527,7 +552,7 @@ export default function StudioLinksPage() {
       };
 
       const updated = [...items, newItem].map((it, idx) => ({ ...it, position: idx }));
-      updateItems(updated);
+      updateItems(updated, activeProfileId);
 
       await apiReorderLinks(
         activeProfileId,
@@ -691,6 +716,24 @@ export default function StudioLinksPage() {
             <span>Drag handles or use arrows to reorder</span>
           </div>
         </div>
+
+        {/* Action Error Banner */}
+        {actionError && (
+          <div className="mt-4 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/25 flex items-center justify-between gap-3 text-xs font-mono text-rose-300">
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+              <span>{actionError}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActionError(null)}
+              className="text-rose-400 hover:text-white p-1 cursor-pointer"
+              aria-label="Dismiss error"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         {/* Subscription Plan Benefit & Quota Alert Banner */}
         {freeLimitReached && (

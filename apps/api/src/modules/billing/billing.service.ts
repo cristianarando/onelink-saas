@@ -1088,6 +1088,8 @@ export class BillingService {
 
   /**
    * Accepts an invitation to collaborate on an Enterprise workspace.
+   * Uses PostgreSQL `teamMember` as the primary source of truth so acceptance
+   * remains reliable even if the Redis invite cache expires or restarts.
    */
   async acceptCollaboration(userId: string, memberId: string) {
     const user = await this.prisma.user.findUnique({
@@ -1099,30 +1101,71 @@ export class BillingService {
     const userEmail = user.email.toLowerCase().trim();
     const userInvitesKey = `billing:user_invites:${userEmail}`;
     const invites = (await this.redisService.get<any[]>(userInvitesKey)) || [];
-    const targetInvite = invites.find((inv) => inv.id === memberId);
-    if (!targetInvite) {
-      throw new NotFoundException('Invitation not found or has been revoked');
-    }
+    let targetInvite = invites.find((inv) => inv.id === memberId);
 
-    targetInvite.status = 'Active';
-    targetInvite.statusDetail = 'Active (2FA Enforced)';
-    await this.redisService.set(userInvitesKey, invites, 86400 * 30);
+    const dbMember = this.prisma.teamMember?.findUnique
+      ? await this.prisma.teamMember.findUnique({
+          where: { id: memberId },
+          include: {
+            owner: {
+              include: {
+                profile: true,
+                subscriptions: {
+                  where: { status: 'ACTIVE' },
+                  include: { plan: true },
+                  take: 1,
+                },
+              },
+            },
+          },
+        })
+      : null;
 
-    // Update in PostgreSQL
-    if (this.prisma.teamMember?.updateMany) {
-      await this.prisma.teamMember.updateMany({
-        where: {
-          email: userEmail,
-          ...(targetInvite.ownerUserId ? { ownerId: targetInvite.ownerUserId } : {}),
-        },
-        data: {
-          status: 'Active',
-          userId,
-        },
+    if (dbMember) {
+      if (dbMember.email.toLowerCase().trim() !== userEmail && dbMember.userId !== userId) {
+        throw new ForbiddenException('This invitation belongs to a different email address.');
+      }
+      await this.prisma.teamMember.update({
+        where: { id: memberId },
+        data: { status: 'Active', userId },
       });
+
+      targetInvite = {
+        id: dbMember.id,
+        ownerUserId: dbMember.ownerId,
+        ownerName: dbMember.owner?.name || dbMember.owner?.email?.split('@')[0] || 'Workspace Owner',
+        ownerUsername: dbMember.owner?.profile?.username || 'owner',
+        ownerProfileId: dbMember.owner?.profile?.id || null,
+        ownerAvatarUrl: dbMember.owner?.profile?.avatarUrl || null,
+        ownerPlan: dbMember.owner?.subscriptions?.[0]?.plan?.code || 'ENTERPRISE',
+        role: dbMember.role,
+        email: dbMember.email,
+        name: dbMember.name,
+        status: 'Active',
+        statusDetail: 'Active (2FA Enforced)',
+      };
+    } else if (!targetInvite) {
+      throw new NotFoundException('Invitation not found or has been revoked');
+    } else {
+      targetInvite.status = 'Active';
+      targetInvite.statusDetail = 'Active (2FA Enforced)';
+      if (this.prisma.teamMember?.updateMany) {
+        await this.prisma.teamMember.updateMany({
+          where: {
+            email: userEmail,
+            ...(targetInvite.ownerUserId ? { ownerId: targetInvite.ownerUserId } : {}),
+          },
+          data: { status: 'Active', userId },
+        });
+      }
     }
 
-    // Also update collaborator status in owner's team members list
+    const updatedInvites = [
+      ...invites.filter((inv) => inv.id !== memberId),
+      targetInvite,
+    ];
+    await this.redisService.set(userInvitesKey, updatedInvites, 86400 * 30);
+
     if (targetInvite.ownerUserId) {
       const ownerTeamKey = `${this.TEAM_CACHE_KEY}:${targetInvite.ownerUserId}`;
       const ownerMembers = (await this.redisService.get<TeamMemberItem[]>(ownerTeamKey)) || [];
@@ -1157,17 +1200,37 @@ export class BillingService {
     const userInvitesKey = `billing:user_invites:${userEmail}`;
     const invites = (await this.redisService.get<any[]>(userInvitesKey)) || [];
     const targetInvite = invites.find((inv) => inv.id === memberId);
+
+    const dbMember = this.prisma.teamMember?.findUnique
+      ? await this.prisma.teamMember.findUnique({ where: { id: memberId } })
+      : null;
+
+    if (!dbMember && !targetInvite) {
+      throw new NotFoundException('Invitation not found or already removed');
+    }
+
+    if (dbMember && dbMember.email.toLowerCase().trim() !== userEmail) {
+      throw new ForbiddenException('You cannot decline an invitation belonging to another user.');
+    }
+
+    const ownerUserId = dbMember?.ownerId || targetInvite?.ownerUserId;
+
     const updatedInvites = invites.filter((inv) => inv.id !== memberId);
     await this.redisService.set(userInvitesKey, updatedInvites, 86400 * 30);
 
-    if (this.prisma.teamMember?.deleteMany && targetInvite?.ownerUserId) {
+    if (this.prisma.teamMember?.deleteMany) {
       await this.prisma.teamMember.deleteMany({
-        where: { ownerId: targetInvite.ownerUserId, email: userEmail },
+        where: {
+          OR: [
+            { id: memberId, email: userEmail },
+            ...(ownerUserId ? [{ ownerId: ownerUserId, email: userEmail }] : []),
+          ],
+        },
       });
     }
 
-    if (targetInvite?.ownerUserId) {
-      const ownerTeamKey = `${this.TEAM_CACHE_KEY}:${targetInvite.ownerUserId}`;
+    if (ownerUserId) {
+      const ownerTeamKey = `${this.TEAM_CACHE_KEY}:${ownerUserId}`;
       const ownerMembers = (await this.redisService.get<TeamMemberItem[]>(ownerTeamKey)) || [];
       const updatedOwnerMembers = ownerMembers.filter(
         (m) => m.id !== memberId && m.email.toLowerCase() !== userEmail,

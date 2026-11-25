@@ -64,6 +64,8 @@ describe('BillingService', () => {
     },
     teamMember: {
       findFirst: jest.fn().mockResolvedValue(null),
+      findUnique: jest.fn().mockResolvedValue(null),
+      update: jest.fn().mockResolvedValue({ id: 'mem_db_1', status: 'Active' }),
       deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
@@ -276,6 +278,40 @@ describe('BillingService', () => {
 
       const remainingInvites = await mockRedis.get('billing:user_invites:collab@onelink.bio');
       expect(remainingInvites).toEqual([]);
+    });
+
+    it('should accept and decline collaboration from PostgreSQL even when Redis invite cache is empty', async () => {
+      mockPrisma.teamMember.findUnique.mockResolvedValueOnce({
+        id: 'mem_pg_1',
+        ownerId: 'owner_1',
+        email: 'collab@onelink.bio',
+        name: 'Collab',
+        role: 'Content Editor',
+        status: 'Pending',
+        owner: {
+          name: 'Workspace Owner',
+          email: 'owner@onelink.bio',
+          profile: { id: 'prof_1', username: 'owner', avatarUrl: null },
+          subscriptions: [{ plan: { code: 'ENTERPRISE' } }],
+        },
+      });
+
+      const accepted = await service.acceptCollaboration('user_collab', 'mem_pg_1');
+      expect(accepted.success).toBe(true);
+      expect(accepted.collaboration.status).toBe('Active');
+      expect(mockPrisma.teamMember.update).toHaveBeenCalledWith({
+        where: { id: 'mem_pg_1' },
+        data: { status: 'Active', userId: 'user_collab' },
+      });
+
+      mockPrisma.teamMember.findUnique.mockResolvedValueOnce({
+        id: 'mem_pg_2',
+        ownerId: 'owner_1',
+        email: 'collab@onelink.bio',
+      });
+      const declined = await service.declineCollaboration('user_collab', 'mem_pg_2');
+      expect(declined.success).toBe(true);
+      expect(mockPrisma.teamMember.deleteMany).toHaveBeenCalled();
     });
   });
 });

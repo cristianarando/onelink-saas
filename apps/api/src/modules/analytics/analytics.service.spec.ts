@@ -22,6 +22,7 @@ describe('AnalyticsService', () => {
         }),
       },
       link: {
+        findFirst: jest.fn().mockResolvedValue({ id: mockLinkId }),
         findMany: jest.fn().mockResolvedValue([
           {
             id: mockLinkId,
@@ -33,6 +34,11 @@ describe('AnalyticsService', () => {
           },
         ]),
         update: jest.fn(),
+      },
+      subscription: {
+        findFirst: jest.fn().mockResolvedValue({
+          plan: { features: { analyticsRetentionDays: 365 } },
+        }),
       },
       pageView: {
         create: jest.fn().mockResolvedValue({ id: 'pv-1' }),
@@ -92,6 +98,18 @@ describe('AnalyticsService', () => {
       );
 
       expect(prismaService.$transaction).toHaveBeenCalled();
+    });
+
+    it('should ignore click event if link does not belong to profileId or is inactive', async () => {
+      prismaService.link.findFirst.mockResolvedValueOnce(null);
+
+      await service.recordClick(
+        { linkId: mockLinkId, profileId: mockProfileId, referrer: 'https://instagram.com' },
+        '192.168.1.1',
+        'Mozilla/5.0',
+      );
+
+      expect(prismaService.$transaction).not.toHaveBeenCalled();
     });
   });
 
@@ -203,6 +221,16 @@ describe('AnalyticsService', () => {
       expect(result.topLinks).toHaveLength(1);
       expect(result.topLinks[0].title).toBe('My Outbound Link');
       expect(result.metrics.activeLinksCount).toBe(1);
+    });
+
+    it('should clamp requested days to the owner subscription analyticsRetentionDays', async () => {
+      prismaService.subscription.findFirst.mockResolvedValueOnce({
+        plan: { features: { analyticsRetentionDays: 7 } },
+      });
+
+      const result = await service.getProfileAnalytics(mockProfileId, 90, 'CREATOR');
+      expect(result.period.days).toBe(7);
+      expect(result.timeSeries).toHaveLength(7);
     });
   });
 });

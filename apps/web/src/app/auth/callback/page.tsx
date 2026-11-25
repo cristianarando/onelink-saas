@@ -4,6 +4,7 @@ import { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, AlertCircle } from "lucide-react";
 import Link from "next/link";
+import { fetchCurrentUser } from "@/lib/api-client";
 
 function CallbackContent() {
   const router = useRouter();
@@ -14,18 +15,33 @@ function CallbackContent() {
 
   useEffect(() => {
     if (!token) return;
+    let active = true;
 
     try {
       localStorage.setItem("onelink_token", token);
+      window.history.replaceState({}, "", "/auth/callback");
     } catch {
-      // localStorage may fail in restricted/incognito frames
+      // localStorage or history API may fail in restricted/incognito frames
     }
 
-    const timer = setTimeout(() => {
-      router.replace("/studio/links");
-    }, 600);
+    fetchCurrentUser()
+      .then((user) => {
+        if (!active) return;
+        if (user?.role === "SUPER_ADMIN") {
+          router.replace("/admin/moderation");
+        } else {
+          router.replace("/studio/links");
+        }
+      })
+      .catch(() => {
+        if (active) {
+          router.replace("/studio/links");
+        }
+      });
 
-    return () => clearTimeout(timer);
+    return () => {
+      active = false;
+    };
   }, [token, router]);
 
   const hasError = Boolean(errorParam || !token);

@@ -220,6 +220,45 @@ describe('LinkService (with Sentinel AI Interception)', () => {
       expect(sentinelAiService.evaluateUrl).not.toHaveBeenCalled();
       expect(prismaService.link.create).not.toHaveBeenCalled();
     });
+
+    it('should store NOTE prose in content with null url and enforce LINK+DONATION quota on Free tier', async () => {
+      prismaService.link.findFirst.mockResolvedValue({ position: 0 });
+      prismaService.link.create.mockResolvedValue({
+        id: 'note-1',
+        profileId: mockProfileId,
+        title: 'Release Update',
+        url: null,
+        content: 'Maintenance tonight at 22:00 UTC',
+        type: 'NOTE',
+        position: 1,
+        clickCount: 0n,
+      });
+
+      const note = await service.createLink(mockProfileId, mockUserId, {
+        title: 'Release Update',
+        url: 'Maintenance tonight at 22:00 UTC',
+        type: 'NOTE' as any,
+      });
+
+      expect(note.url).toBeNull();
+      expect(note.content).toBe('Maintenance tonight at 22:00 UTC');
+      expect(sentinelAiService.evaluateUrl).not.toHaveBeenCalled();
+
+      // Free tier quota check should block a 6th DONATION/LINK block
+      prismaService.subscription.findFirst.mockResolvedValueOnce({
+        plan: { features: { maxLinks: 5, scheduledLinks: false, passwordProtection: false, ageRestriction: false } },
+      });
+      prismaService.link.count.mockResolvedValueOnce(5);
+      sentinelAiService.evaluateUrl.mockResolvedValueOnce({ isSafe: true, action: 'ALLOW', signals: [] });
+
+      await expect(
+        service.createLink(mockProfileId, mockUserId, {
+          title: 'Tip Jar',
+          url: 'https://ko-fi.com/creator',
+          type: 'DONATION' as any,
+        }),
+      ).rejects.toThrow('Plan limit reached (5/5 links)');
+    });
   });
 
   describe('updateLink', () => {

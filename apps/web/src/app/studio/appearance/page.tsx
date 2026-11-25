@@ -25,6 +25,8 @@ import {
   fetchCurrentUser,
   fetchMyProfile,
   fetchProfileLinks,
+  fetchSocialLinks,
+  SocialLinkItem,
   apiSaveCustomTheme,
   apiUpdateProfile,
   apiCheckUsername,
@@ -259,6 +261,7 @@ export default function StudioAppearancePage() {
   const [isCustomMode, setIsCustomMode] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [studioLinks, setStudioLinks] = useState<StudioLinkItem[]>([]);
+  const [socialLinks, setSocialLinks] = useState<SocialLinkItem[]>([]);
   const [mobileTab, setMobileTab] = useState<"editor" | "preview">("editor");
 
   const cleanHandle = username.replace(/^@/, "").toLowerCase().trim();
@@ -351,6 +354,15 @@ export default function StudioAppearancePage() {
         if (p && isMounted) {
           if (p.id) {
             setProfileId(p.id);
+            if (Array.isArray(p.socialLinks) && isMounted) {
+              setSocialLinks(p.socialLinks);
+            } else {
+              fetchSocialLinks(p.id)
+                .then((sl) => {
+                  if (isMounted) setSocialLinks(sl);
+                })
+                .catch(() => {});
+            }
             try {
               const linksRes = await fetchProfileLinks(p.id);
               if (Array.isArray(linksRes) && isMounted) {
@@ -359,6 +371,7 @@ export default function StudioAppearancePage() {
                     id: String(l.id || ""),
                     title: String(l.title || ""),
                     url: String(l.url || "#"),
+                    content: (l.content as string) || undefined,
                     type: (l.type as StudioLinkItem["type"]) || "LINK",
                     thumbnailUrl: (l.thumbnailUrl as string) || undefined,
                     badge: (l.badge as string) || undefined,
@@ -1017,6 +1030,7 @@ export default function StudioAppearancePage() {
         displayName={displayName}
         bio={bio}
         avatarUrl={avatarUrl}
+        socialLinks={socialLinks}
         theme={{
           bgType,
           bgValue,
