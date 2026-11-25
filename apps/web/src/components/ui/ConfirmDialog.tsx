@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { AlertTriangle, Info, ShieldAlert, X } from "lucide-react";
 
 export interface ConfirmDialogProps {
@@ -37,7 +38,7 @@ export function ConfirmDialog({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, loading, onCancel]);
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === "undefined") return null;
 
   const iconWrapperClass =
     variant === "danger"
@@ -53,7 +54,7 @@ export function ConfirmDialog({
         ? "bg-amber-400 hover:bg-amber-300 text-black"
         : "bg-white hover:bg-zinc-200 text-black";
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -61,7 +62,7 @@ export function ConfirmDialog({
       onClick={() => {
         if (!loading) onCancel();
       }}
-      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
+      className="fixed inset-0 z-100 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
     >
       <div
         onClick={(e) => e.stopPropagation()}
@@ -121,6 +122,7 @@ export function ConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
