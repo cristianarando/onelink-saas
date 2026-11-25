@@ -30,6 +30,7 @@ import {
   apiLeaveCollaboration,
   WorkspaceCollaboration,
 } from "@/lib/api-client";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 interface StudioLayoutProps {
   children: React.ReactNode;
@@ -53,6 +54,8 @@ export default function StudioLayout({ children }: StudioLayoutProps) {
   const [activeWorkspaceAvatar, setActiveWorkspaceAvatar] = useState<string | null>(null);
   const [isWorkspaceMenuOpen, setIsWorkspaceMenuOpen] = useState(false);
   const [isProcessingCollab, setIsProcessingCollab] = useState<string | null>(null);
+  const [leaveTarget, setLeaveTarget] = useState<WorkspaceCollaboration | null>(null);
+  const [layoutError, setLayoutError] = useState<string | null>(null);
 
   const [profileAvatarOverride, setProfileAvatarOverride] = useState<string | null>(null);
 
@@ -124,22 +127,27 @@ export default function StudioLayout({ children }: StudioLayoutProps) {
     }
   };
 
-  const handleLeaveWorkspace = async (collab: WorkspaceCollaboration) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to leave @${collab.ownerUsername}'s workspace? You will lose your ${collab.role} access to this account.`
-    );
-    if (!confirmed) return;
+  const handleLeaveWorkspace = (collab: WorkspaceCollaboration) => {
+    setIsWorkspaceMenuOpen(false);
+    setLeaveTarget(collab);
+  };
 
+  const confirmLeaveWorkspace = async () => {
+    if (!leaveTarget) return;
+    const collab = leaveTarget;
     setIsProcessingCollab(collab.id);
+    setLayoutError(null);
     try {
       await apiLeaveCollaboration(collab.id);
       if (activeWorkspace?.id === collab.id) {
         handleSelectWorkspace(null);
       }
       await loadCollaborations();
+      setLeaveTarget(null);
     } catch (err) {
       console.error("Failed to leave workspace:", err);
-      alert("Failed to leave workspace. Please try again.");
+      setLayoutError("Failed to leave workspace. Please try again.");
+      setLeaveTarget(null);
     } finally {
       setIsProcessingCollab(null);
     }
@@ -261,6 +269,18 @@ export default function StudioLayout({ children }: StudioLayoutProps) {
   return (
     <div className="h-screen flex flex-col bg-[#09090b] text-[#fafafa] font-sans selection:bg-white/20 selection:text-white md:overflow-hidden">
       {/* Pending Workspace Invitations Banner */}
+      {layoutError && (
+        <div className="w-full bg-rose-950/90 border-b border-rose-500/30 px-4 py-2 flex items-center justify-between text-xs text-rose-200 z-50 shrink-0">
+          <span>{layoutError}</span>
+          <button
+            type="button"
+            onClick={() => setLayoutError(null)}
+            className="text-rose-300 hover:text-white px-2 cursor-pointer"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
       {collaborations
         .filter((c) => c.status === "Pending")
         .map((inv) => (
@@ -615,6 +635,17 @@ export default function StudioLayout({ children }: StudioLayoutProps) {
           <span>Home</span>
         </Link>
       </nav>
+
+      <ConfirmDialog
+        isOpen={Boolean(leaveTarget)}
+        title={`Leave @${leaveTarget?.ownerUsername || "workspace"}?`}
+        description={`You will revoke your ${leaveTarget?.role || "collaborator"} access to this Enterprise workspace. An owner must re-invite you to regain access.`}
+        confirmLabel="Leave Workspace"
+        variant="danger"
+        loading={Boolean(leaveTarget && isProcessingCollab === leaveTarget.id)}
+        onConfirm={confirmLeaveWorkspace}
+        onCancel={() => setLeaveTarget(null)}
+      />
     </div>
   );
 }

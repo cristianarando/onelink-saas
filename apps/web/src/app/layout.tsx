@@ -1,5 +1,13 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import {
+  Geist,
+  Geist_Mono,
+  Inter,
+  Plus_Jakarta_Sans,
+  Space_Grotesk,
+  JetBrains_Mono,
+  Merriweather,
+} from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -9,6 +17,32 @@ const geistSans = Geist({
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+const interFont = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+});
+
+const jakartaFont = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
+  subsets: ["latin"],
+});
+
+const spaceGroteskFont = Space_Grotesk({
+  variable: "--font-space-grotesk",
+  subsets: ["latin"],
+});
+
+const jetbrainsMonoFont = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
+  subsets: ["latin"],
+});
+
+const merriweatherFont = Merriweather({
+  variable: "--font-merriweather",
+  weight: ["400", "700"],
   subsets: ["latin"],
 });
 
@@ -111,7 +145,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full dark antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${interFont.variable} ${jakartaFont.variable} ${spaceGroteskFont.variable} ${jetbrainsMonoFont.variable} ${merriweatherFont.variable} h-full dark antialiased`}
     >
       <head>
         <script

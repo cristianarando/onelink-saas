@@ -14,6 +14,7 @@ import {
   Sliders,
   Users,
   LogOut,
+  DollarSign,
 } from "lucide-react";
 import {
   fetchSentinelTelemetry,
@@ -22,6 +23,8 @@ import {
   fetchAdminAuditLogs,
   fetchAdminUsers,
   fetchCurrentUser,
+  fetchBillingMetrics,
+  fetchBillingEvents,
   clearAuthToken,
   type SentinelTelemetry,
   type SecurityThreatItem,
@@ -29,6 +32,8 @@ import {
   type AdminAuditLogItem,
   type AdminUserItem,
   type CurrentUserSession,
+  type BillingMetrics,
+  type BillingEvent,
 } from "@/lib/api-client";
 import { TelemetryBentoGrid } from "@/components/admin/TelemetryBentoGrid";
 import { LiveUrlSandbox } from "@/components/admin/LiveUrlSandbox";
@@ -36,6 +41,8 @@ import { ThreatQueueTable } from "@/components/admin/ThreatQueueTable";
 import { DomainBlocklistManager } from "@/components/admin/DomainBlocklistManager";
 import { AuditLogsViewer } from "@/components/admin/AuditLogsViewer";
 import { UserDirectoryTable } from "@/components/admin/UserDirectoryTable";
+import { FinancialMetricsGrid } from "@/components/studio/billing/FinancialMetricsGrid";
+import { InvoicingEventsLedger } from "@/components/studio/billing/InvoicingEventsLedger";
 
 const NAV_TABS = [
   { id: "threats", name: "Threat Stream", icon: ShieldAlert },
@@ -43,6 +50,7 @@ const NAV_TABS = [
   { id: "sandbox", name: "Interception Engine", icon: Activity },
   { id: "domains", name: "Domain Registry", icon: Globe },
   { id: "audit", name: "Audit Ledgers", icon: History },
+  { id: "revenue", name: "Revenue & Stripe", icon: DollarSign },
 ];
 
 export default function AdminModerationPage() {
@@ -54,6 +62,8 @@ export default function AdminModerationPage() {
   const [blocklist, setBlocklist] = useState<DomainBlocklistItem[]>([]);
   const [auditLogs, setAuditLogs] = useState<AdminAuditLogItem[]>([]);
   const [users, setUsers] = useState<AdminUserItem[]>([]);
+  const [billingMetrics, setBillingMetrics] = useState<BillingMetrics | null>(null);
+  const [billingEvents, setBillingEvents] = useState<BillingEvent[]>([]);
   const [currentUser, setCurrentUser] = useState<CurrentUserSession | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -80,12 +90,14 @@ export default function AdminModerationPage() {
       }
       setCurrentUser(meData);
 
-      const [tData, thData, bData, aData, uData] = await Promise.all([
+      const [tData, thData, bData, aData, uData, mData, eData] = await Promise.all([
         fetchSentinelTelemetry(),
         fetchSecurityThreats(50),
         fetchDomainBlocklist(),
         fetchAdminAuditLogs(30),
         fetchAdminUsers(),
+        fetchBillingMetrics(),
+        fetchBillingEvents(),
       ]);
 
       if (tData) setTelemetry(tData);
@@ -93,6 +105,8 @@ export default function AdminModerationPage() {
       if (bData) setBlocklist(bData);
       if (aData) setAuditLogs(aData);
       if (uData) setUsers(uData);
+      if (mData) setBillingMetrics(mData);
+      if (eData) setBillingEvents(eData);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to load moderation feeds";
       setFetchError(msg);
@@ -359,6 +373,13 @@ export default function AdminModerationPage() {
         {activeTab === "audit" && (
           <section aria-label="Immutable Audit Logs">
             <AuditLogsViewer logs={auditLogs} />
+          </section>
+        )}
+
+        {activeTab === "revenue" && (
+          <section aria-label="Founder Revenue and Stripe Event Telemetry" className="space-y-6">
+            {billingMetrics && <FinancialMetricsGrid metrics={billingMetrics} />}
+            <InvoicingEventsLedger initialEvents={billingEvents} />
           </section>
         )}
 

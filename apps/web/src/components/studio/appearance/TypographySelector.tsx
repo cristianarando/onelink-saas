@@ -13,8 +13,10 @@ interface TypographySelectorProps {
 const FONTS = [
   { id: "Geist", label: "Geist (Clean Architectural)" },
   { id: "Space Grotesk", label: "Space Grotesk (Tech Editorial)" },
-  { id: "Inter", label: "Inter (Modern Neo-grotesque)" },
+  { id: "Plus Jakarta Sans", label: "Plus Jakarta Sans (Modern Brand)" },
+  { id: "Inter", label: "Inter (Minimalist Neo-grotesque)" },
   { id: "JetBrains Mono", label: "JetBrains Mono (Technical)" },
+  { id: "Merriweather", label: "Merriweather (Classic Editorial Serif)" },
 ];
 
 const WEIGHTS = [

@@ -263,6 +263,16 @@ export default function StudioLinksPage() {
     };
   }, [router]);
 
+  // Close Auto-archive modal on Escape key
+  useEffect(() => {
+    if (!isAutoArchiveModalOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsAutoArchiveModalOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isAutoArchiveModalOpen]);
+
   // Save to profile-scoped localStorage whenever items change
   const updateItems = (newItems: StudioLinkItem[], overrideProfileId?: string) => {
     setItems(newItems);
@@ -476,7 +486,7 @@ export default function StudioLinksPage() {
     }
 
     if (!activeProfileId) {
-      alert("Profile ID not found. Please reload or log in again.");
+      setActionError("Profile ID not found. Please reload or log in again.");
       return;
     }
 
@@ -933,13 +943,22 @@ export default function StudioLinksPage() {
 
       {/* Auto-archive Configuration Modal */}
       {isAutoArchiveModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-[#121215] border border-white/10 rounded-2xl p-6 max-w-md w-full space-y-5 shadow-2xl">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="auto-archive-modal-title"
+          onClick={() => setIsAutoArchiveModalOpen(false)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[#121215] border border-white/10 rounded-2xl p-6 max-w-md w-full space-y-5 shadow-2xl"
+          >
             {/* Header */}
             <div className="flex items-center justify-between pb-3 border-b border-white/5">
               <div className="flex items-center space-x-2">
                 <Sliders className="w-4 h-4 text-emerald-400" />
-                <h3 className="text-base font-bold text-white">Auto-archive Optimization</h3>
+                <h3 id="auto-archive-modal-title" className="text-base font-bold text-white">Auto-archive Optimization</h3>
               </div>
               <button
                 onClick={() => setIsAutoArchiveModalOpen(false)}
