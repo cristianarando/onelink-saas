@@ -60,6 +60,7 @@ function LoginForm() {
       }
 
       const data = await res.json();
+      clearAuthToken();
       if (data.accessToken) {
         localStorage.setItem("onelink_token", data.accessToken);
       }

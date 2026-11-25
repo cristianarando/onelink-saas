@@ -1,27 +1,38 @@
 "use client";
 
-import { useEffect, Suspense } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, AlertCircle } from "lucide-react";
 import Link from "next/link";
-import { fetchCurrentUser } from "@/lib/api-client";
+import { fetchCurrentUser, clearAuthToken } from "@/lib/api-client";
 
 function CallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const token = searchParams.get("token");
   const errorParam = searchParams.get("error");
+  // Latch the initial token before window.history.replaceState strips ?token= from the URL,
+  // because Next.js App Router updates useSearchParams() synchronously on replaceState.
+  const [initialToken] = useState<string | null>(
+    () =>
+      searchParams.get("token") ||
+      (typeof window !== "undefined" ? localStorage.getItem("onelink_token") : null)
+  );
+  const hasProcessedRef = useRef(false);
 
   useEffect(() => {
-    if (!token) return;
+    if (errorParam || !initialToken) return;
     let active = true;
 
-    try {
-      localStorage.setItem("onelink_token", token);
-      window.history.replaceState({}, "", "/auth/callback");
-    } catch {
-      // localStorage or history API may fail in restricted/incognito frames
+    if (!hasProcessedRef.current) {
+      hasProcessedRef.current = true;
+      try {
+        clearAuthToken();
+        localStorage.setItem("onelink_token", initialToken);
+        window.history.replaceState({}, "", "/auth/callback");
+      } catch {
+        // localStorage or history API may fail in restricted/incognito frames
+      }
     }
 
     fetchCurrentUser()
@@ -42,9 +53,9 @@ function CallbackContent() {
     return () => {
       active = false;
     };
-  }, [token, router]);
+  }, [initialToken, errorParam, router]);
 
-  const hasError = Boolean(errorParam || !token);
+  const hasError = Boolean(errorParam || !initialToken);
   const errorMessage = errorParam || "No authorization token received from provider";
 
   return (
