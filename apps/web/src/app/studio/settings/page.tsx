@@ -25,6 +25,7 @@ import {
   apiUpdateProfile,
   type UpdateProfilePayload,
 } from "@/lib/api-client";
+import { resolvePublicOrigin } from "@/hooks/useStudioWorkspace";
 
 export default function StudioSettingsPage() {
   const router = useRouter();
@@ -145,7 +146,7 @@ export default function StudioSettingsPage() {
 
   const handleCopyLink = async () => {
     try {
-      const publicUrl = `https://onelink.bio/${username}`;
+      const publicUrl = `${resolvePublicOrigin()}/${username}`;
       if (navigator.clipboard) {
         await navigator.clipboard.writeText(publicUrl);
       }

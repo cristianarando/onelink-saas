@@ -41,12 +41,15 @@ It is crucial to distinguish between the **Platform Chrome** and the **Creator's
 │ 🛠️ ONELINK STUDIO DASHBOARD                │ 📱 CREATOR PUBLIC PROFILES (`/@username`) │
 ├────────────────────────────────────────────┼───────────────────────────────────────────┤
 │ • Fixed Brand Aesthetic                    │ • Fully Customizable by the Creator       │
-│ • Monochromatic Carbon (`#09090b`)         │ • Presets:                                │
-│ • Hair-thin Zinc borders (`#27272a`)       │   1. Obsidian Kinetic (Monochrome Dark)   │
-│ • White high-contrast CTAs                 │   2. Minimalist Paper (Pure Light)        │
-│ • Consistent productivity UX               │   3. Cyberpunk Neon (Glow Cyan / Violet)  │
-│                                            │   4. Sakura (Rose Pastel)                 │
-│                                            │   5. Emerald Forest (Deep Green)          │
+│ • Monochromatic Carbon (`#09090b`)         │ • 8 Canonical Presets:                    │
+│ • Hair-thin Zinc borders (`#27272a`)       │   1. Obsidian Carbon (Monochrome Dark)    │
+│ • White high-contrast CTAs                 │   2. Alpine Snow (Minimalist Light)       │
+│ • Consistent productivity UX               │   3. Sunset Aurora (Deep Violet Gradient) │
+│                                            │   4. Forest Emerald (Emerald Gradient)    │
+│                                            │   5. Midnight Ocean (Deep Slate Cyan)     │
+│                                            │   6. Cyberpunk Neon (Glow Cyan Outline)   │
+│                                            │   7. Bento Linen (Warm Editorial Paper)   │
+│                                            │   8. Solar Gold (High-Contrast Gold)      │
 │ • The right-hand phone preview dynamically reflects the theme chosen by the creator!   │
 └────────────────────────────────────────────┴───────────────────────────────────────────┘
 ```
@@ -54,9 +57,9 @@ It is crucial to distinguish between the **Platform Chrome** and the **Creator's
 ---
 
 ## 4. Typography Hierarchy
-- **Brand & Headings**: `Space Grotesk` or `Outfit` — Tracked `-0.025em`, font-weight `600` / `700`.
-- **Interface & Link Labels**: `Inter, system-ui, sans-serif` — Tracking normal, font-weight `500` (Medium).
-- **Data & Analytics**: `JetBrains Mono, monospace` — For click counters, percentages, and timestamps.
+- **Architectural Sans**: `Geist Sans` — Tracked `-0.025em`, font-weight `600` / `700`.
+- **Editorial & Theme Fonts**: `Space Grotesk`, `Plus Jakarta Sans`, and `Inter` — Selectable per creator profile.
+- **Data & Technical Telemetry**: `JetBrains Mono` / `Geist Mono` — Click counters, percentages, API latency, and timestamps.
 
 ---
 

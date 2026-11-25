@@ -30,7 +30,17 @@ Content-Type: application/json
   "url": "https://metamask-free-airdrop-claim.xyz/walletconnect"
 }
 
-### 5. Register Creator User
+### 5. Login Seed Founder / Creator Account
+# @name loginUser
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "cris@onelink.bio",
+  "password": "Password123!"
+}
+
+### 6. Register New Creator User
 # @name registerUser
 POST {{baseUrl}}/auth/register
 Content-Type: application/json
@@ -42,19 +52,8 @@ Content-Type: application/json
   "name": "Alex Rivera"
 }
 
-### 6. Login User
-# @name loginUser
-POST {{baseUrl}}/auth/login
-Content-Type: application/json
-
-{
-  "email": "creator@onelink.bio",
-  "password": "SecurePassword123!"
-}
-
 ### 7. Get Authenticated Profile
-# Paste the accessToken returned from request #6 above, or use: {{loginUser.response.body.accessToken}}
-@authToken = YOUR_JWT_ACCESS_TOKEN_HERE
+@authToken = {{loginUser.response.body.accessToken}}
 
 GET {{baseUrl}}/auth/me
 Authorization: Bearer {{authToken}}
@@ -66,7 +65,7 @@ GET {{baseUrl}}/admin/security/threats
 GET {{baseUrl}}/themes
 
 ### 10. Get Public Profile (Hot Path - Redis Cached)
-GET {{baseUrl}}/profiles/alexrivera
+GET {{baseUrl}}/profiles/crisarando
 
 ### 11. Get Authenticated Creator Profile
 GET {{baseUrl}}/profiles/me

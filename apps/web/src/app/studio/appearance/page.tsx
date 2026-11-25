@@ -402,7 +402,7 @@ export default function StudioAppearancePage() {
 
           const activeThemeData = p.customTheme || p.theme;
           if (activeThemeData) {
-            setBgType(activeThemeData.bgType || "SOLID");
+            setBgType(activeThemeData.bgType === "GRADIENT" ? "GRADIENT" : "SOLID");
             setBgValue(activeThemeData.bgValue || "#09090b");
             setBtnRadius(typeof activeThemeData.btnRadius === "number" ? activeThemeData.btnRadius : 9999);
             setBtnStyle((activeThemeData.btnStyle || "FILLED") as "FILLED" | "OUTLINE" | "SHADOW" | "ROUNDED");
