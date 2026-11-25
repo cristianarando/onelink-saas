@@ -88,7 +88,10 @@ function AddEditLinkForm({
   const [title, setTitle] = useState(
     initialItem?.title ?? (defaultType === "DONATION" ? "Buy Me a Coffee ☕" : defaultType === "NOTE" ? "Important Note 📝" : "")
   );
-  const [url, setUrl] = useState(initialItem?.url ?? "");
+  const [url, setUrl] = useState(initialItem?.type === "NOTE" ? "" : (initialItem?.url ?? ""));
+  const [noteContent, setNoteContent] = useState(
+    initialItem?.content ?? (initialItem?.type === "NOTE" && initialItem.url !== "#" ? initialItem.url : "")
+  );
   const [selectedIcon, setSelectedIcon] = useState<string>(() => {
     if (initialItem?.thumbnailUrl?.startsWith("icon:")) {
       return initialItem.thumbnailUrl.replace(/^icon:/, "");
@@ -139,7 +142,7 @@ function AddEditLinkForm({
       setError("Title is required.");
       return;
     }
-    if (type === "NOTE" && !url.trim()) {
+    if (type === "NOTE" && !noteContent.trim()) {
       setError("Please write some message or text content for your note.");
       return;
     }
@@ -176,7 +179,8 @@ function AddEditLinkForm({
       await onSave({
         id: initialItem?.id,
         title: type === "DIVIDER" ? "Divider" : title.trim(),
-        url: type === "LINK" || type === "DONATION" ? formattedUrl : type === "NOTE" ? url.trim() : "#",
+        url: type === "LINK" || type === "DONATION" ? formattedUrl : "#",
+        content: type === "NOTE" ? noteContent.trim() : undefined,
         type,
         isActive,
         thumbnailUrl: computedThumbnailUrl,
@@ -320,14 +324,15 @@ function AddEditLinkForm({
             </label>
             <textarea
               rows={4}
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
+              maxLength={5000}
+              value={noteContent}
+              onChange={(e) => setNoteContent(e.target.value)}
               placeholder="Write your note, update, shipping FAQ, or discount code here..."
               className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900/90 border border-amber-500/30 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 font-sans leading-relaxed"
             />
             <div className="flex justify-between items-center text-[10px] font-mono text-zinc-400 mt-1">
-              <span>{url.split(/\s+/).filter(Boolean).length} words</span>
-              <span>{url.length} / 2048 characters</span>
+              <span>{noteContent.split(/\s+/).filter(Boolean).length} words</span>
+              <span>{noteContent.length} / 5000 characters</span>
             </div>
           </div>
         </div>
@@ -489,26 +494,6 @@ function AddEditLinkForm({
               }
               className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-white/10 text-white placeholder-zinc-500 text-sm focus:outline-none focus:border-zinc-400 transition-colors"
               autoFocus
-            />
-          </div>
-        )}
-
-        {type === "NOTE" && (
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-mono uppercase text-zinc-400">
-                Note Message &amp; Announcement Content
-              </label>
-              <span className="text-[10px] font-mono text-zinc-500">
-                {url.split(/\s+/).filter(Boolean).length} words
-              </span>
-            </div>
-            <textarea
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              rows={4}
-              placeholder="Write a message, announcement, discount code, or schedule update for your visitors..."
-              className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-white/10 text-white placeholder-zinc-500 text-sm focus:outline-none focus:border-zinc-400 transition-colors resize-y leading-relaxed"
             />
           </div>
         )}

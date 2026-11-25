@@ -1,7 +1,8 @@
-import { Controller, Post, Get, Body, HttpCode, HttpStatus, UsePipes } from '@nestjs/common';
+import { Controller, Post, Get, Body, HttpCode, HttpStatus, UsePipes, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { EvaluateUrlSchema } from '@repo/shared';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
+import { RateLimitGuard, RateLimit } from '../../common/guards/rate-limit.guard';
 import { SentinelAiService } from './sentinel-ai.service';
 import { SentinelEvaluationResult } from './sentinel-ai.types';
 
@@ -15,6 +16,8 @@ export class SentinelAiController {
   constructor(private readonly sentinelAi: SentinelAiService) {}
 
   @Post('evaluate')
+  @UseGuards(RateLimitGuard)
+  @RateLimit(20, 60)
   @UsePipes(new ZodValidationPipe(EvaluateUrlSchema))
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

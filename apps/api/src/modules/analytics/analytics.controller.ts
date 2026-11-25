@@ -40,7 +40,8 @@ export class AnalyticsController {
     if (user) {
       await this.analyticsService.verifyOwnership(profileId, user.id, user.role);
     }
-    const days = daysParam ? parseInt(daysParam, 10) || 30 : 30;
-    return await this.analyticsService.getProfileAnalytics(profileId, days);
+    const parsedDays = daysParam ? parseInt(daysParam, 10) : 30;
+    const days = Math.min(365, Math.max(1, Number.isNaN(parsedDays) ? 30 : parsedDays));
+    return await this.analyticsService.getProfileAnalytics(profileId, days, user?.role);
   }
 }

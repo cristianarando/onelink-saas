@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as crypto from 'crypto';
-import { LinkType } from '@repo/prisma';
+import { LinkType, Role } from '@repo/prisma';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { ProfileAccessService } from '../../common/services/profile-access.service';
 import {
@@ -102,12 +102,24 @@ export class AnalyticsService {
 
   /**
    * Records a link click event and atomically increments click_count
+   * after verifying the link belongs to the specified profile and is active.
    */
   async recordClick(dto: TrackClickDto, clientIp?: string, userAgent?: string): Promise<void> {
     const { device, browser, os } = this.parseUserAgent(userAgent);
     const ipHash = this.hashIp(clientIp);
 
     try {
+      const targetLink = this.prisma.link.findFirst
+        ? await this.prisma.link.findFirst({
+            where: { id: dto.linkId, profileId: dto.profileId, isActive: true },
+            select: { id: true },
+          })
+        : { id: dto.linkId };
+
+      if (!targetLink) {
+        return;
+      }
+
       await this.prisma.$transaction([
         this.prisma.clickEvent.create({
           data: {
@@ -163,9 +175,39 @@ export class AnalyticsService {
   }
 
   /**
-   * Aggregates analytics metrics for a given profile over a day range (default: 30 days)
+   * Aggregates analytics metrics for a given profile over a day range (default: 30 days).
+   * Enforces upper bounds (1..365) and respects the profile owner's plan retention window.
    */
-  async getProfileAnalytics(profileId: string, days = 30): Promise<ProfileAnalyticsResponse> {
+  async getProfileAnalytics(
+    profileId: string,
+    requestedDays = 30,
+    requesterRole?: string,
+  ): Promise<ProfileAnalyticsResponse> {
+    let maxRetentionDays = 365;
+
+    const isPrivileged = requesterRole === Role.OWNER || requesterRole === Role.SUPER_ADMIN;
+    if (!isPrivileged && this.prisma.subscription?.findFirst) {
+      const profile = await this.prisma.profile.findUnique({
+        where: { id: profileId },
+        select: { userId: true },
+      });
+      if (profile?.userId) {
+        const sub = await this.prisma.subscription.findFirst({
+          where: { userId: profile.userId, status: 'ACTIVE' },
+          include: { plan: true },
+          orderBy: { createdAt: 'desc' },
+        });
+        const features = sub?.plan?.features as Record<string, any> | undefined;
+        maxRetentionDays =
+          typeof features?.analyticsRetentionDays === 'number'
+            ? features.analyticsRetentionDays
+            : sub
+              ? 7
+              : 365;
+      }
+    }
+
+    const days = Math.min(maxRetentionDays, Math.min(365, Math.max(1, requestedDays)));
     const now = new Date();
     const currentStart = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
     const previousStart = new Date(now.getTime() - days * 2 * 24 * 60 * 60 * 1000);

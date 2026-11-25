@@ -171,6 +171,7 @@ export async function apiCreateLink(
   link: {
     title: string;
     url: string;
+    content?: string | null;
     type?: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE";
     badge?: string | null;
     thumbnailUrl?: string | null;
@@ -215,6 +216,7 @@ export async function apiUpdateLink(
   updates: {
     title?: string;
     url?: string;
+    content?: string | null;
     isActive?: boolean;
     type?: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE";
     badge?: string | null;
@@ -1366,7 +1368,10 @@ export async function apiCreateSocialLink(
   const token = await getAuthToken();
   const res = await fetch(`${API_BASE_URL}/api/profiles/${profileId}/social-links`, {
     method: "POST",
-    headers: authHeaders(token),
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token),
+    },
     body: JSON.stringify(data),
   });
 
@@ -1396,7 +1401,10 @@ export async function apiUpdateSocialLink(
     `${API_BASE_URL}/api/profiles/${profileId}/social-links/${linkId}`,
     {
       method: "PATCH",
-      headers: authHeaders(token),
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(token),
+      },
       body: JSON.stringify(data),
     }
   );
@@ -1445,7 +1453,10 @@ export async function apiReorderSocialLinks(
     `${API_BASE_URL}/api/profiles/${profileId}/social-links/reorder`,
     {
       method: "PUT",
-      headers: authHeaders(token),
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(token),
+      },
       body: JSON.stringify({ items }),
     }
   );

@@ -303,7 +303,12 @@ export function PhonePreview({
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => setActiveNoteModal({ title: item.title, content: item.url || "" })}
+                  onClick={() =>
+                    setActiveNoteModal({
+                      title: item.title,
+                      content: item.content || (item.url && item.url !== "#" ? item.url : ""),
+                    })
+                  }
                   className={`phone-item w-full flex items-center justify-between p-3 rounded-2xl text-left transition-all duration-150 group cursor-pointer shadow-sm ${
                     isPageLight
                       ? "bg-amber-500/10 border-2 border-amber-500/30 hover:border-amber-500 shadow-amber-900/5"

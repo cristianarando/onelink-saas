@@ -6,15 +6,19 @@ import {
   HttpCode,
   HttpStatus,
   UsePipes,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { TrackClickSchema, TrackPageViewSchema } from '@repo/shared';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
+import { RateLimitGuard, RateLimit } from '../../common/guards/rate-limit.guard';
 import { AnalyticsService } from './analytics.service';
 import { TrackClickDto, TrackPageViewDto } from './dto/analytics.dto';
 
 @ApiTags('Telemetry & Tracking')
+@UseGuards(RateLimitGuard)
+@RateLimit(30, 60)
 @Controller('track')
 export class TrackController {
   constructor(private readonly analyticsService: AnalyticsService) {}

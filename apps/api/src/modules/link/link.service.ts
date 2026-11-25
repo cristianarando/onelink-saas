@@ -6,7 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
-import { SecurityFlagStatus, LinkType } from '@repo/prisma';
+import { SecurityFlagStatus, LinkType, Role } from '@repo/prisma';
 import { RedisService } from '../../infrastructure/cache/redis.service';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { SentinelAiService } from '../sentinel-ai/sentinel-ai.service';
@@ -139,7 +139,7 @@ export class LinkService {
       ageRestriction: false,
     };
 
-    const isPrivileged = role === 'OWNER' || role === 'ADMIN';
+    const isPrivileged = role === Role.OWNER || role === Role.SUPER_ADMIN;
 
     if (!isPrivileged) {
       if ((dto.startsAt || dto.expiresAt) && !features.scheduledLinks) {
@@ -159,9 +159,9 @@ export class LinkService {
       }
 
       const maxLinks = features.maxLinks ?? 5;
-      if (dto.type === LinkType.LINK || !dto.type) {
+      if (dto.type === LinkType.LINK || dto.type === LinkType.DONATION || !dto.type) {
         const currentCount = await this.prisma.link.count({
-          where: { profileId, type: LinkType.LINK },
+          where: { profileId, type: { in: [LinkType.LINK, LinkType.DONATION] } },
         });
         if (currentCount >= maxLinks) {
           throw new BadRequestException(
@@ -185,14 +185,22 @@ export class LinkService {
       hashedPassword = await bcrypt.hash(dto.password.trim(), 10);
     }
 
+    const effectiveType = dto.type || LinkType.LINK;
+    const normalizedUrl =
+      effectiveType === LinkType.NOTE ? null : dto.url;
+    const normalizedContent =
+      effectiveType === LinkType.NOTE
+        ? (dto.content ?? (dto.url && dto.url !== '#' ? dto.url : null))
+        : dto.content;
+
     // 5. Persist link to PostgreSQL
     const created = await this.prisma.link.create({
       data: {
         profileId,
         title: dto.title,
-        url: dto.url,
-        content: dto.content,
-        type: dto.type || LinkType.LINK,
+        url: normalizedUrl,
+        content: normalizedContent,
+        type: effectiveType,
         thumbnailUrl: dto.thumbnailUrl,
         isActive: dto.isActive !== undefined ? dto.isActive : true,
         position,
@@ -299,7 +307,7 @@ export class LinkService {
       ageRestriction: false,
     };
 
-    const isPrivileged = role === 'OWNER' || role === 'ADMIN';
+    const isPrivileged = role === Role.OWNER || role === Role.SUPER_ADMIN;
 
     if (!isPrivileged) {
       if (
@@ -349,12 +357,20 @@ export class LinkService {
           : null;
     }
 
+    const effectiveType = dto.type || existing.type;
+    const normalizedUrl =
+      effectiveType === LinkType.NOTE ? null : dto.url;
+    const normalizedContent =
+      effectiveType === LinkType.NOTE && dto.content === undefined && typeof dto.url === 'string' && dto.url !== '#'
+        ? dto.url
+        : dto.content;
+
     const updated = await this.prisma.link.update({
       where: { id: linkId },
       data: {
         title: dto.title,
-        url: dto.url,
-        content: dto.content,
+        url: normalizedUrl,
+        content: normalizedContent,
         type: dto.type,
         thumbnailUrl: dto.thumbnailUrl,
         isActive: dto.isActive,

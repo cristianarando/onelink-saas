@@ -32,14 +32,20 @@ export class EmailService implements OnModuleInit {
   onModuleInit() {
     const host = this.configService.get<string>('SMTP_HOST') || 'localhost';
     const port = Number(this.configService.get<number>('SMTP_PORT')) || 1025;
+    const user = this.configService.get<string>('SMTP_USER');
+    const pass = this.configService.get<string>('SMTP_PASS');
+    const isProductionSmtp = Boolean(user && pass);
 
     try {
       this.transporter = nodemailer.createTransport({
         host,
         port,
-        ignoreTLS: true,
+        secure: port === 465,
+        ...(isProductionSmtp ? { auth: { user, pass } } : { ignoreTLS: true }),
       });
-      this.logger.log(`Initialized MailHog SMTP transport on ${host}:${port}`);
+      this.logger.log(
+        `Initialized ${isProductionSmtp ? 'authenticated' : 'sandbox'} SMTP transport on ${host}:${port}`,
+      );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.warn(`Could not initialize SMTP transport: ${msg}`);
@@ -61,6 +67,14 @@ export class EmailService implements OnModuleInit {
     const safeActionUrl = /^https?:\/\//i.test(params.actionUrl)
       ? params.actionUrl.replace(/"/g, '%22')
       : '#';
+
+    const fromAddress =
+      this.configService.get<string>('SMTP_FROM') ||
+      '"OneLink Studio" <notifications@onelink.bio>';
+    const isProductionSmtp = Boolean(this.configService.get<string>('SMTP_USER'));
+    const transportLabel = isProductionSmtp
+      ? 'Transactional Workspace Dispatch'
+      : 'Local SMTP Sandbox (MailHog)';
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -124,7 +138,7 @@ export class EmailService implements OnModuleInit {
           </div>
 
           <div class="footer">
-            OneLink Architecture &bull; Local SMTP Mailbox (MailHog:8025) &bull; Automated System Dispatch
+            OneLink Architecture &bull; ${transportLabel} &bull; Automated System Dispatch
           </div>
         </div>
       </body>
@@ -133,7 +147,7 @@ export class EmailService implements OnModuleInit {
 
     try {
       const info = await this.transporter.sendMail({
-        from: '"OneLink Studio" <notifications@onelink.bio>',
+        from: fromAddress,
         to: params.to,
         subject: `Invitation to collaborate on @${params.inviterUsername}'s OneLink workspace`,
         text: `Hello ${params.inviteeName},\n\n${params.inviterName} (@${params.inviterUsername}) has invited you to collaborate on their ${params.workspacePlan} workspace as ${params.role}.\n\nLog into ${params.actionUrl} with email ${params.to} to accept and manage the profile.`,

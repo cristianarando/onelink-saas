@@ -267,8 +267,14 @@ export const UpdateLinkSchema = z
   })
   .refine(
     (data) => {
-      if (data.url !== undefined && (data.type === 'LINK' || data.type === 'DONATION' || !data.type)) {
+      if (data.type === 'HEADER' || data.type === 'DIVIDER' || data.type === 'NOTE') {
+        return true;
+      }
+      if (data.url !== undefined && (data.type === 'LINK' || data.type === 'DONATION')) {
         return Boolean(data.url && isValidWebUrl(data.url));
+      }
+      if (!data.type && data.url !== undefined && data.url !== null && data.url !== '#') {
+        return isValidWebUrl(data.url);
       }
       return true;
     },
@@ -278,6 +284,17 @@ export const UpdateLinkSchema = z
       path: ['url'],
     }
   );
+
+export const ExtractUrlMetadataSchema = z.object({
+  url: z
+    .string()
+    .min(1, 'URL is required')
+    .max(2048, 'URL is too long')
+    .refine((val) => isValidWebUrl(val), {
+      message: 'Must be a valid web URL with a domain.',
+    }),
+});
+export type ExtractUrlMetadataInput = z.infer<typeof ExtractUrlMetadataSchema>;
 
 export const UnlockLinkSchema = z.object({
   password: z.string().min(1, 'PIN or password is required').max(100),

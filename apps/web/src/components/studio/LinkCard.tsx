@@ -21,6 +21,7 @@ export interface StudioLinkItem {
   id: string;
   title: string;
   url: string;
+  content?: string | null;
   type: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE";
   isActive: boolean;
   clicks: number;
@@ -282,7 +283,9 @@ export function LinkCard({
           {/* Desktop Subline: URL and Clicks */}
           <div className="hidden sm:flex items-center space-x-3 mt-1">
             <span className="text-xs font-mono text-zinc-500 truncate max-w-50 sm:max-w-65 group-hover:text-zinc-400 transition-colors">
-              {item.type === "NOTE" ? `📝 ${item.url}` : item.url.replace(/^https?:\/\//, "")}
+              {item.type === "NOTE"
+                ? `📝 ${item.content || (item.url !== "#" ? item.url : "")}`
+                : item.url.replace(/^https?:\/\//, "")}
             </span>
             <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-zinc-900 border border-white/5 text-[11px] font-mono text-zinc-400 shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -318,7 +321,9 @@ export function LinkCard({
         {/* Mobile URL & Clicks Counter */}
         <div className="flex sm:hidden items-center space-x-2 min-w-0 pr-2">
           <span className="text-[11px] font-mono text-zinc-500 truncate max-w-32.5 xs:max-w-[170px]">
-            {item.type === "NOTE" ? `📝 ${item.url}` : item.url.replace(/^https?:\/\//, "")}
+            {item.type === "NOTE"
+              ? `📝 ${item.content || (item.url !== "#" ? item.url : "")}`
+              : item.url.replace(/^https?:\/\//, "")}
           </span>
           <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded-full bg-zinc-900 border border-white/5 text-[10px] font-mono text-zinc-400 shrink-0">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
