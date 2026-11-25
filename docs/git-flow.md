@@ -132,7 +132,7 @@ All commits in the repository must adhere to the Conventional Commits specificat
 |---|---|---|
 | `feat` | New user-facing feature | `feat(billing): allow workspace members to quit collaboration` |
 | `fix` | Bug fix | `fix(studio): prevent empty string src rendering in avatar previews` |
-| `docs` | Documentation only changes | `docs: add production deployment guide in root DEPLOYMENT.md` |
+| `docs` | Documentation only changes | `docs: update architecture decision records in docs/adr` |
 | `refactor` | Code restructuring without feature or bug change | `refactor(auth): simplify JWT payload extraction` |
 | `perf` | Performance optimization | `perf(cache): optimize profile Redis TTL to 600s` |
 | `test` | Adding or updating unit/integration tests | `test(sentinel): add unit tests for homoglyph detection` |

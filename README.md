@@ -208,9 +208,7 @@ All primary commands can be executed from the **monorepo root**:
 
 Every technical decision, schema, user journey, and wireframe is formally documented in [`docs/`](./docs):
 
-- 📋 **[Progress Tracker & Setup Log](./docs/progress-tracker.md)**: Full inventory of setup and SDLC checklist.
 - 🌿 **[Git Flow Branching & Release Strategy](./docs/git-flow.md)**: Official Git Flow model (`main`, `develop`, `feature/*`, `release/*`, `hotfix/*`), SemVer, and Conventional Commits.
-- 🚀 **[Free Forever Production Deployment Guide](./DEPLOYMENT.md)**: Zero-cost deployment roadmap using Vercel, Render/Koyeb, Neon PostgreSQL, and Upstash Redis without 30-day trial cutoffs.
 - 👥 **[Demo Accounts & Role Guide](./docs/demo-accounts.md)**: Preconfigured seed accounts, role hierarchy, and login guide.
 - 🗺️ **[Master Documentation Hub](./docs/README.md)**: Master map of all specifications.
 - 📄 **[Product Requirements Document (PRD)](./docs/prd.md)**: Personas, Gherkin user stories, MoSCoW.
@@ -218,7 +216,6 @@ Every technical decision, schema, user journey, and wireframe is formally docume
 - 🗄️ **[Database Design & ERD](./docs/architecture/database-design.md)**: Mermaid ERD, TimescaleDB Hypertables, indexes.
 - 🏛️ **[System Architecture (C4)](./docs/architecture/system-architecture.md)**: C4 Context, Container, Component, and Deployment diagrams.
 - 🔄 **[Sequence Flows](./docs/architecture/sequence-flows.md)**: Hot path profile rendering, click beacons, and caching.
-- 🎨 **[UI/UX Wireframes & Google Stitch](./docs/ui-ux/wireframes-and-mockups.md)**: Split-screen dashboard wireframes & design tokens.
-- 🧪 **[Quality & Test Plan](./docs/test-plan.md)**: TDD Red-Green-Refactor testing matrix.
+- 🎨 **[UI/UX Wireframes & Design System](./docs/ui-ux/wireframes-and-mockups.md)**: Split-screen dashboard wireframes & design tokens.
 - 📐 **[Architecture Decision Records (ADR)](./docs/adr/)**: ADRs 001 through 004.
 

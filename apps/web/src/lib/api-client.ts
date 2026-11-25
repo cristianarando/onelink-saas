@@ -88,11 +88,24 @@ export async function getAdminAuthToken(): Promise<string | null> {
 }
 
 /**
- * Clear session token from local storage
+ * Clear session token and any cached workspace/studio keys from local storage
  */
 export function clearAuthToken(): void {
   if (typeof window !== "undefined") {
     localStorage.removeItem("onelink_token");
+    localStorage.removeItem("onelink_active_workspace");
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("onelink_studio_")) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((key) => localStorage.removeItem(key));
+    } catch {
+      // Ignore storage access errors in restricted frames
+    }
   }
 }
 

@@ -1,9 +1,8 @@
 # 📚 OneLink Platform Documentation Hub & SDLC Architecture
 
 > **Project Name**: **OneLink** (`onelink.bio`) — High-Scalability Creator Link-in-Bio Platform  
-> **Lifecycle Phase**: System Design & Specification (SDLC Phases 1–4 Complete)  
-> **Repository Architecture**: Turborepo Monorepo (`apps/*`, `packages/*`, `infrastructure/*`, `docs/*`)  
-> **Visual Mockups**: Unified Google Stitch Canvas (Project ID: `14141085438200447026`)
+> **Lifecycle Phase**: Production-Ready System Design & Implementation  
+> **Repository Architecture**: Turborepo Monorepo (`apps/*`, `packages/*`, `infrastructure/*`, `docs/*`)
 
 Welcome to the engineering and product documentation repository for **OneLink**. This directory is strictly structured into modular folders following standard enterprise Software Development Life Cycle (SDLC) practices.
 
@@ -14,11 +13,10 @@ Welcome to the engineering and product documentation repository for **OneLink**.
 ```
 docs/
 ├── README.md                           # Master Documentation Map (this file)
-├── progress-tracker.md                 # Live Track & Verification Guide of Completed Work
-├── master-plan.md                      # Comprehensive 16-Week Product & Tech Roadmap
+├── git-flow.md                         # Branching Strategy, PR Policies & SemVer
+├── demo-accounts.md                    # Preconfigured Seed Accounts & Role Hierarchy
 ├── prd.md                              # Product Requirements Document (Personas, User Stories, MoSCoW)
 ├── srs.md                              # Software Requirements Specification (IEEE 830, Functional & NFRs)
-├── test-plan.md                        # QA & Test Strategy (TDD, Unit, Integration, E2E)
 │
 ├── architecture/                       # System & Data Architecture
 │   ├── database-design.md              # Entity-Relationship Diagram (ERD), Tables, Indexes, TimescaleDB
@@ -27,11 +25,9 @@ docs/
 │
 ├── ui-ux/                              # Interface & Experience Design
 │   ├── DESIGN.md                       # OneLink Carbon Architecture Semantic Design System
-│   ├── wireframes-and-mockups.md       # Screen Specifications, Split-Screen Dashboard, Stitch Alignment
+│   ├── wireframes-and-mockups.md       # Screen Specifications & Split-Screen Dashboard Architecture
 │   ├── user-flows-and-sitemap.md       # Full User Flow, Sitemap, and 5-State Screen Matrix
-│   ├── prompts/
-│   │   └── screen-prompts.md           # Stitch-Optimized Generation & Edit Prompts for Platform Screens
-│   └── mockups/                        # High-Fidelity Google Stitch Visual Mockups & Source HTML
+│   └── mockups/                        # Visual Mockup References & Source HTML
 │       ├── screen-1-profile.png & .html          # Public Mobile Profile (/@alexrivera)
 │       ├── screen-2-studio-dashboard.png & .html # OneLink Studio Links Manager (60/40 Split)
 │       ├── screen-3-appearance.png & .html       # OneLink Studio Appearance & Themes (60/40 Split)
@@ -52,7 +48,6 @@ docs/
 
 | Category | Document Link | Description & Key Artifacts | Status |
 |---|---|---|---|
-| **Tracking & Status** | [progress-tracker.md](./progress-tracker.md) | Audit of all completed setups, verification logs, and SDLC checklist | ✅ Active Track |
 | **Git Flow & Releases** | [git-flow.md](./git-flow.md) | Branching strategy, PR policies, SemVer tagging, and Conventional Commits | ✅ Active Standard |
 | **Demo Accounts** | [demo-accounts.md](./demo-accounts.md) | Preconfigured seed accounts, role hierarchy, and login guide | ✅ Active |
 | **Requirements** | [prd.md](./prd.md) | 4 Personas, Gherkin user stories, feature prioritization | ✅ Approved |
@@ -62,11 +57,9 @@ docs/
 | **Sequence Flows** | [architecture/sequence-flows.md](./architecture/sequence-flows.md) | Hot path profile read, Beacon click tracking, Cache eviction | ✅ Approved |
 | **User Flows & Sitemap** | [ui-ux/user-flows-and-sitemap.md](./ui-ux/user-flows-and-sitemap.md) | Visitor vs Creator flows, complete sitemap, 5-state UI matrix | ✅ Approved |
 | **Design System** | [ui-ux/DESIGN.md](./ui-ux/DESIGN.md) | Carbon Architecture tokens (Zinc 950 `#09090b`, Geist + JetBrains Mono) | ✅ Approved |
-| **UI/UX & Wireframes**| [ui-ux/wireframes-and-mockups.md](./ui-ux/wireframes-and-mockups.md) | Screen layouts, 60/40 Split Dashboard, Google Stitch specs | ✅ Approved |
-| **Visual Mockups** | [ui-ux/mockups/](./ui-ux/mockups/) | 6 High-fidelity Stitch screens (PNGs + self-contained HTML) | ✅ 100% Generated |
+| **UI/UX & Wireframes**| [ui-ux/wireframes-and-mockups.md](./ui-ux/wireframes-and-mockups.md) | Screen layouts and 60/40 Split Dashboard specs | ✅ Approved |
+| **Visual Mockups** | [ui-ux/mockups/](./ui-ux/mockups/) | 6 High-fidelity screen references (PNGs + self-contained HTML) | ✅ Complete |
 | **Architecture Decisions**| [adr/](./adr/) | Formal ADRs 001 through 004 documenting key tech trade-offs | ✅ Approved |
-| **Test Strategy** | [test-plan.md](./test-plan.md) | TDD Red-Green-Refactor, Supertest integration, Playwright E2E | ✅ Approved |
-| **Master Roadmap** | [master-plan.md](./master-plan.md) | 16-week execution timeline from foundation to production | ✅ Approved |
 
 ---
 
@@ -76,6 +69,5 @@ We enforce a strict engineering order:
 1. **Requirements & Scope Validation**: Verify PRD and SRS before designing features.
 2. **Architecture & Data Modeling**: Model schema in `database-design.md` and ERD before writing migrations.
 3. **UI/UX & Wireframes**: Align on layouts, wireframes, and design tokens before writing frontend components.
-4. **Google Stitch Unified Prototyping**: Validate aesthetics, responsive layouts, and interactive behavior on unified canvas.
-5. **Test-Driven Implementation (TDD)**: Write test specs (Red 🔴) -> Implement code (Green 🟢) -> Refactor (🔵).
-6. **Continuous Verification**: Monorepo builds, typechecks, and unit test suites must pass 100% on every commit.
+4. **Test-Driven Implementation (TDD)**: Write test specs (Red 🔴) -> Implement code (Green 🟢) -> Refactor (🔵).
+5. **Continuous Verification**: Monorepo builds, typechecks, and unit test suites must pass 100% on every commit.
