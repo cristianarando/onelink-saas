@@ -296,6 +296,7 @@ export default function StudioAppearancePage() {
                     type: (l.type as StudioLinkItem["type"]) || "LINK",
                     thumbnailUrl: (l.thumbnailUrl as string) || undefined,
                     badge: (l.badge as string) || undefined,
+                    isFeatured: Boolean(l.isFeatured),
                     isActive: l.isActive !== false,
                     clicks: Number(l.clickCount || 0),
                     position: typeof l.position === "number" ? l.position : idx,

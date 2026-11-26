@@ -19,18 +19,20 @@ import {
   StickyNote,
   Loader2,
   Tags,
+  Code2,
 } from "lucide-react";
 import { StudioLinkItem } from "./LinkCard";
 import { AVAILABLE_LINK_ICONS } from "./IconHelper";
 import { isValidWebUrl } from "@repo/shared";
 import { apiExtractUrlMetadata } from "@/lib/api-client";
+import { parseEmbedDisplayMode, parseEmbedUrl } from "@/lib/embed-parser";
 
 export interface AddEditLinkModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: Omit<StudioLinkItem, "position" | "clicks" | "id"> & { id?: string }) => Promise<void> | void;
   initialItem?: StudioLinkItem | null;
-  defaultType?: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE";
+  defaultType?: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE" | "EMBED";
   userPlanCode?: string;
 }
 
@@ -38,7 +40,7 @@ interface FormInnerProps {
   onClose: () => void;
   onSave: (data: Omit<StudioLinkItem, "position" | "clicks" | "id"> & { id?: string }) => Promise<void> | void;
   initialItem?: StudioLinkItem | null;
-  defaultType: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE";
+  defaultType: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE" | "EMBED";
   userPlanCode: string;
 }
 
@@ -124,7 +126,7 @@ function AddEditLinkForm({
   const isFreeTier = !userPlanCode || userPlanCode === "FREE";
   const isEnterpriseTier = userPlanCode === "ENTERPRISE";
 
-  const [type, setType] = useState<"LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE">(
+  const [type, setType] = useState<"LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE" | "EMBED">(
     initialItem?.type ?? defaultType
   );
   const [title, setTitle] = useState(
@@ -134,6 +136,10 @@ function AddEditLinkForm({
   const [noteContent, setNoteContent] = useState(
     initialItem?.content ?? (initialItem?.type === "NOTE" && initialItem.url !== "#" ? initialItem.url : "")
   );
+  const [embedDisplayMode, setEmbedDisplayMode] = useState<"inline" | "collapsible">(() =>
+    parseEmbedDisplayMode(initialItem?.content)
+  );
+  const [isFeatured, setIsFeatured] = useState(initialItem?.isFeatured ?? false);
   const [selectedIcon, setSelectedIcon] = useState<string>(() => {
     if (initialItem?.thumbnailUrl?.startsWith("icon:")) {
       return initialItem.thumbnailUrl.replace(/^icon:/, "");
@@ -245,7 +251,7 @@ function AddEditLinkForm({
       setError("Please write some message or text content for your note.");
       return;
     }
-    if (type === "LINK" || type === "DONATION") {
+    if (type === "LINK" || type === "DONATION" || type === "EMBED") {
       if (!url.trim()) {
         setError("URL is required.");
         return;
@@ -278,10 +284,11 @@ function AddEditLinkForm({
       await onSave({
         id: initialItem?.id,
         title: type === "DIVIDER" ? "Divider" : title.trim(),
-        url: type === "LINK" || type === "DONATION" ? formattedUrl : "#",
-        content: type === "NOTE" ? noteContent.trim() : undefined,
+        url: type === "LINK" || type === "DONATION" || type === "EMBED" ? formattedUrl : "#",
+        content: type === "NOTE" ? noteContent.trim() : type === "EMBED" ? embedDisplayMode : undefined,
         type,
         isActive,
+        isFeatured: type === "LINK" || type === "DONATION" || type === "EMBED" ? isFeatured : false,
         thumbnailUrl: computedThumbnailUrl,
         badge: badge.trim() || undefined,
         startsAt: !isFreeTier && startsAt ? new Date(startsAt).toISOString() : null,
@@ -319,7 +326,7 @@ function AddEditLinkForm({
 
       {/* Content Type Selector */}
       {!initialItem && (
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 my-5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 my-5">
           <button
             type="button"
             onClick={() => {
@@ -334,6 +341,21 @@ function AddEditLinkForm({
           >
             <LinkIcon className="w-3.5 h-3.5" />
             <span>Link</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setType("EMBED");
+              if (title === "Buy Me a Coffee ☕" || title === "Important Note 📝") setTitle("");
+            }}
+            className={`flex items-center justify-center space-x-1.5 py-2.5 rounded-xl border text-xs font-medium transition-all ${
+              type === "EMBED"
+                ? "bg-sky-400 text-zinc-950 border-sky-400 font-semibold shadow"
+                : "bg-zinc-900 border-white/5 text-zinc-400 hover:text-white hover:bg-zinc-800"
+            }`}
+          >
+            <Code2 className="w-3.5 h-3.5" />
+            <span>Media Embed</span>
           </button>
           <button
             type="button"
@@ -397,6 +419,50 @@ function AddEditLinkForm({
             <StickyNote className="w-3.5 h-3.5" />
             <span>Note Block</span>
           </button>
+        </div>
+      )}
+
+      {/* Interactive Rich Media Embed Configuration Block */}
+      {type === "EMBED" && (
+        <div className="p-3.5 rounded-xl bg-sky-500/10 border border-sky-500/30 space-y-3 mb-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-semibold text-sky-300 flex items-center gap-1.5">
+              <Code2 className="w-3.5 h-3.5 text-sky-400" />
+              <span>Interactive Embed (YouTube, Spotify, GitHub)</span>
+            </span>
+            {url.trim() && (
+              <span className="px-2 py-0.5 rounded-full bg-sky-400/20 text-sky-200 text-[10px] font-mono uppercase">
+                {parseEmbedUrl(url).provider}
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] text-sky-200/80 leading-relaxed">
+            Paste a YouTube video/short, Spotify track/playlist, or GitHub repository URL. Choose whether visitors see it expanded immediately or toggle it open on tap.
+          </p>
+          <div className="flex items-center gap-2 pt-0.5">
+            <button
+              type="button"
+              onClick={() => setEmbedDisplayMode("collapsible")}
+              className={`flex-1 py-1.5 px-2.5 rounded-lg text-[11px] font-mono border transition-all cursor-pointer ${
+                embedDisplayMode === "collapsible"
+                  ? "bg-white text-zinc-950 border-white font-semibold"
+                  : "bg-zinc-900/90 text-zinc-300 border-white/10 hover:text-white"
+              }`}
+            >
+              Collapsible (Tap to Open)
+            </button>
+            <button
+              type="button"
+              onClick={() => setEmbedDisplayMode("inline")}
+              className={`flex-1 py-1.5 px-2.5 rounded-lg text-[11px] font-mono border transition-all cursor-pointer ${
+                embedDisplayMode === "inline"
+                  ? "bg-white text-zinc-950 border-white font-semibold"
+                  : "bg-zinc-900/90 text-zinc-300 border-white/10 hover:text-white"
+              }`}
+            >
+              Expanded Inline
+            </button>
+          </div>
         </div>
       )}
 
@@ -576,6 +642,8 @@ function AddEditLinkForm({
                 ? "Tip Block Label / Title"
                 : type === "NOTE"
                 ? "Note Title / Announcement Header"
+                : type === "EMBED"
+                ? "Embed Card Title"
                 : "Link Title"}
             </label>
             <input
@@ -589,6 +657,8 @@ function AddEditLinkForm({
                   ? "Buy Me a Coffee ☕"
                   : type === "NOTE"
                   ? "e.g. Special Community Note 📝"
+                  : type === "EMBED"
+                  ? "e.g. Featured Repo / Video"
                   : "e.g. Free System Design Architecture Guide"
               }
               className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-white/10 text-white placeholder-zinc-500 text-sm focus:outline-none focus:border-zinc-400 transition-colors"
@@ -597,12 +667,16 @@ function AddEditLinkForm({
           </div>
         )}
 
-        {(type === "LINK" || type === "DONATION") && (
+        {(type === "LINK" || type === "DONATION" || type === "EMBED") && (
           <>
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-xs font-mono uppercase text-zinc-400">
-                  {type === "DONATION" ? "Payment or Tip Link (Stripe, Ko-fi, PayPal, Buymeacoffee)" : "Destination URL"}
+                  {type === "DONATION"
+                    ? "Payment or Tip Link (Stripe, Ko-fi, PayPal, Buymeacoffee)"
+                    : type === "EMBED"
+                    ? "YouTube, Spotify, or GitHub Repo URL"
+                    : "Destination URL"}
                 </label>
                 <button
                   type="button"
@@ -892,6 +966,34 @@ function AddEditLinkForm({
             </div>
           )}
         </div>
+
+        {/* Spotlight / Featured Toggle */}
+        {(type === "LINK" || type === "DONATION" || type === "EMBED") && (
+          <div className="flex items-center justify-between pt-2">
+            <div>
+              <span className="text-xs text-zinc-200 font-medium flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>Spotlight Highlight</span>
+              </span>
+              <span className="text-[11px] text-zinc-500">Accentuate this link on your public profile</span>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={isFeatured}
+              onClick={() => setIsFeatured(!isFeatured)}
+              className={`relative inline-flex items-center w-10 h-5 rounded-full p-0.5 cursor-pointer transition-colors ${
+                isFeatured ? "bg-amber-400" : "bg-zinc-700"
+              }`}
+            >
+              <span
+                className={`switch-knob inline-block w-4 h-4 rounded-full shadow-sm transition-transform ${
+                  isFeatured ? "translate-x-5 bg-black" : "translate-x-0 bg-zinc-300"
+                }`}
+              />
+            </button>
+          </div>
+        )}
 
         {/* Publish Immediately Switch */}
         <div className="flex items-center justify-between pt-2">

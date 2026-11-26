@@ -3,14 +3,24 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { fetchCurrentUser, CurrentUserSession } from "@/lib/api-client";
-import { SlidersHorizontal, ArrowRight, QrCode } from "lucide-react";
+import { SlidersHorizontal, ArrowRight, QrCode, UserPlus } from "lucide-react";
 import { QrCodeModal } from "@/components/studio/QrCodeModal";
 
 interface ProfileHeaderActionsProps {
   username: string;
+  displayName?: string | null;
+  bio?: string | null;
+  vcardEnabled?: boolean;
+  socialLinks?: Array<{ platform: string; url: string }>;
 }
 
-export function ProfileHeaderActions({ username }: ProfileHeaderActionsProps) {
+export function ProfileHeaderActions({
+  username,
+  displayName,
+  bio,
+  vcardEnabled = true,
+  socialLinks = [],
+}: ProfileHeaderActionsProps) {
   const [session, setSession] = useState<CurrentUserSession | null>(null);
   const [isQrOpen, setIsQrOpen] = useState(false);
 
@@ -46,6 +56,57 @@ export function ProfileHeaderActions({ username }: ProfileHeaderActionsProps) {
       ? `${window.location.origin}/${cleanTargetUsername}`
       : `https://onelink-saas.vercel.app/${cleanTargetUsername}`;
 
+  const handleDownloadVCard = () => {
+    const safeName = (displayName || cleanTargetUsername).replace(/[\r\n;]/g, " ").trim();
+    const safeBio = (bio || "").replace(/[\r\n]/g, " ").trim();
+
+    const lines = [
+      "BEGIN:VCARD",
+      "VERSION:3.0",
+      `FN:${safeName}`,
+      `NICKNAME:@${cleanTargetUsername}`,
+      `URL:${publicUrl}`,
+    ];
+    if (safeBio) {
+      lines.push(`NOTE:${safeBio}`);
+    }
+    const emailLink = socialLinks.find((s) => s.platform === "EMAIL")?.url;
+    if (emailLink) {
+      lines.push(`EMAIL;TYPE=INTERNET:${emailLink.replace(/^mailto:/i, "")}`);
+    }
+    socialLinks
+      .filter((s) => s.platform !== "EMAIL" && s.url)
+      .slice(0, 6)
+      .forEach((s) => {
+        lines.push(`X-SOCIALPROFILE;type=${s.platform.toLowerCase()}:${s.url}`);
+      });
+    lines.push("END:VCARD");
+
+    const blob = new Blob([lines.join("\r\n") + "\r\n"], {
+      type: "text/vcard;charset=utf-8",
+    });
+    const objectUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download = `${cleanTargetUsername}.vcf`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+  };
+
+  const vcardButton = vcardEnabled ? (
+    <button
+      type="button"
+      onClick={handleDownloadVCard}
+      aria-label="Save Contact Card (.vcf)"
+      title="Save Contact Card (.vcf)"
+      className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-all cursor-pointer active:scale-95"
+    >
+      <UserPlus className="w-3.5 h-3.5" />
+    </button>
+  ) : null;
+
   const qrButton = (
     <button
       type="button"
@@ -60,6 +121,7 @@ export function ProfileHeaderActions({ username }: ProfileHeaderActionsProps) {
 
   return (
     <div className="flex items-center gap-1.5">
+      {vcardButton}
       {qrButton}
       {isOwner ? (
         <Link

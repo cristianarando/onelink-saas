@@ -20,6 +20,7 @@ interface ProfileData {
   seoDesc: string | null;
   ogImageUrl: string | null;
   searchIndexing?: boolean;
+  vcardEnabled?: boolean;
   isUnpublished?: boolean;
   theme?: {
     name: string;
@@ -46,10 +47,12 @@ interface ProfileData {
     title: string;
     url: string | null;
     content?: string | null;
-    type: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE";
+    type: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE" | "EMBED";
     position: number;
     thumbnailUrl: string | null;
     badge?: string | null;
+    isFeatured?: boolean;
+    expiresAt?: string | null;
     isPasswordProtected?: boolean;
     isAgeRestricted?: boolean;
   }>;
@@ -374,7 +377,13 @@ async function ProfileContent({
           <span className="text-sm font-semibold tracking-tight text-white/90">
             @{cleanUsername}
           </span>
-          <ProfileHeaderActions username={cleanUsername} />
+          <ProfileHeaderActions
+            username={cleanUsername}
+            displayName={displayName}
+            bio={profile.bio}
+            vcardEnabled={profile.vcardEnabled !== false}
+            socialLinks={profile.socialLinks}
+          />
         </div>
       </header>
 
@@ -448,6 +457,8 @@ async function ProfileContent({
                 thumbnailUrl={link.thumbnailUrl}
                 profileId={profile.id}
                 badge={link.badge}
+                isFeatured={link.isFeatured}
+                expiresAt={link.expiresAt}
                 btnStyle={btnStyle}
                 btnColor={btnColor}
                 btnTextColor={btnTextColor}

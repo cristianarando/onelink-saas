@@ -37,6 +37,9 @@ export class CreateLinkDto {
 
   @ApiPropertyOptional({ example: 'NEW', description: 'Badge pill text' })
   badge?: string | null;
+
+  @ApiPropertyOptional({ default: false, description: 'Highlight link with Spotlight card treatment' })
+  isFeatured?: boolean;
 }
 
 export class UpdateLinkDto {
@@ -75,6 +78,9 @@ export class UpdateLinkDto {
 
   @ApiPropertyOptional({ example: 'NEW', description: 'Badge pill text' })
   badge?: string | null;
+
+  @ApiPropertyOptional({ description: 'Highlight link with Spotlight card treatment' })
+  isFeatured?: boolean;
 }
 
 export class ReorderItemDto {
