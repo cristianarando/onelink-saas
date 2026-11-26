@@ -104,7 +104,12 @@ export class AnalyticsService {
    * Records a link click event and atomically increments click_count
    * after verifying the link belongs to the specified profile and is active.
    */
-  async recordClick(dto: TrackClickDto, clientIp?: string, userAgent?: string): Promise<void> {
+  async recordClick(
+    dto: TrackClickDto,
+    clientIp?: string,
+    userAgent?: string,
+    country?: string,
+  ): Promise<void> {
     const { device, browser, os } = this.parseUserAgent(userAgent);
     const ipHash = this.hashIp(clientIp);
 
@@ -129,6 +134,7 @@ export class AnalyticsService {
             device,
             browser,
             os,
+            country,
             ipHash,
           },
         }),
@@ -146,7 +152,12 @@ export class AnalyticsService {
   /**
    * Records an anonymous profile page view event
    */
-  async recordPageView(dto: TrackPageViewDto, clientIp?: string, userAgent?: string): Promise<void> {
+  async recordPageView(
+    dto: TrackPageViewDto,
+    clientIp?: string,
+    userAgent?: string,
+    country?: string,
+  ): Promise<void> {
     const { device, browser, os } = this.parseUserAgent(userAgent);
     const ipHash = this.hashIp(clientIp);
 
@@ -158,6 +169,7 @@ export class AnalyticsService {
           device,
           browser,
           os,
+          country,
           ipHash,
         },
       });
@@ -240,7 +252,7 @@ export class AnalyticsService {
       }),
       this.prisma.pageView.findMany({
         where: { profileId, timestamp: { gte: currentStart } },
-        select: { timestamp: true, referrer: true, device: true, os: true },
+        select: { timestamp: true, referrer: true, device: true, os: true, country: true },
       }),
       this.prisma.clickEvent.findMany({
         where: { profileId, timestamp: { gte: currentStart } },
@@ -360,6 +372,28 @@ export class AnalyticsService {
       }))
       .sort((a, b) => b.count - a.count);
 
+    // Geographic Country Breakdown (from Vercel/Cloudflare edge headers)
+    const countryCount = new Map<string, number>();
+    let totalGeoViews = 0;
+    for (const v of rawViews as Array<{ country?: string | null }>) {
+      const code = v.country?.trim().toUpperCase();
+      if (code && /^[A-Z]{2}$/.test(code)) {
+        countryCount.set(code, (countryCount.get(code) || 0) + 1);
+        totalGeoViews += 1;
+      }
+    }
+
+    const countryBreakdown: CategorizedMetric[] =
+      totalGeoViews > 0
+        ? Array.from(countryCount.entries())
+            .map(([name, count]) => ({
+              name,
+              count,
+              percentage: Number(((count / totalGeoViews) * 100).toFixed(1)),
+            }))
+            .sort((a, b) => b.count - a.count)
+        : [];
+
     return {
       period: {
         days,
@@ -379,6 +413,7 @@ export class AnalyticsService {
       trafficSources,
       deviceBreakdown,
       osBreakdown,
+      countryBreakdown,
     };
   }
 }

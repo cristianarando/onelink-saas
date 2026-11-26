@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -14,16 +15,21 @@ import {
   ExternalLink,
   Sparkles,
   Download,
+  Upload,
   Search,
   PowerOff,
   Power,
+  Image as ImageIcon,
+  X,
 } from "lucide-react";
 import {
   fetchProfile,
   fetchMyProfile,
   fetchCurrentUser,
   apiUpdateProfile,
+  apiImportProfileSnapshot,
   type UpdateProfilePayload,
+  type ImportProfileSnapshotPayload,
 } from "@/lib/api-client";
 import { resolvePublicOrigin } from "@/hooks/useStudioWorkspace";
 
@@ -41,8 +47,18 @@ export default function StudioSettingsPage() {
 
   const [saving, setSaving] = useState<boolean>(false);
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
+  const [savedNoticeText, setSavedNoticeText] = useState<string>("Settings successfully synchronized to database!");
   const [copiedUrl, setCopiedUrl] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [importDraft, setImportDraft] = useState<{
+    fileName: string;
+    payload: Omit<ImportProfileSnapshotPayload, "mode">;
+  } | null>(null);
+  const [importMode, setImportMode] = useState<"MERGE" | "REPLACE">("MERGE");
+  const [importing, setImporting] = useState<boolean>(false);
+  const [importError, setImportError] = useState<string | null>(null);
 
   // Load initial settings from database with active workspace support
   useEffect(() => {
@@ -195,6 +211,7 @@ export default function StudioSettingsPage() {
       };
       const ok = await apiUpdateProfile(activeProfileId, payload);
       if (ok) {
+        setSavedNoticeText("Settings successfully synchronized to database!");
         setSavedSuccess(true);
         setTimeout(() => setSavedSuccess(false), 3000);
       } else {
@@ -206,6 +223,125 @@ export default function StudioSettingsPage() {
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSelectSnapshotFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    setImportError(null);
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text) as Record<string, unknown>;
+      if (!parsed || typeof parsed !== "object") {
+        throw new Error("Invalid snapshot format: expected a JSON object.");
+      }
+
+      const rawLinks = Array.isArray(parsed.links) ? parsed.links : [];
+      const normalizedLinks = rawLinks
+        .filter((l): l is Record<string, unknown> => Boolean(l && typeof l === "object" && l.title))
+        .slice(0, 100)
+        .map((l) => ({
+          title: String(l.title),
+          url: l.url ? String(l.url) : null,
+          content: l.content ? String(l.content) : null,
+          type: (l.type as "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE" | "EMBED") || "LINK",
+          thumbnailUrl: l.thumbnailUrl ? String(l.thumbnailUrl) : null,
+          badge: l.badge ? String(l.badge) : null,
+          isActive: l.isActive !== false,
+          isFeatured: Boolean(l.isFeatured),
+          startsAt: l.startsAt ? String(l.startsAt) : null,
+          expiresAt: l.expiresAt ? String(l.expiresAt) : null,
+          isAgeRestricted: Boolean(l.isAgeRestricted),
+        }));
+
+      const rawSocials = Array.isArray(parsed.socialLinks) ? parsed.socialLinks : [];
+      const normalizedSocials = rawSocials
+        .filter((s): s is Record<string, unknown> => Boolean(s && typeof s === "object" && s.platform && s.url))
+        .slice(0, 20)
+        .map((s) => ({
+          platform: String(s.platform),
+          url: String(s.url),
+          isActive: s.isActive !== false,
+        }));
+
+      const rawTheme = (parsed.customTheme || parsed.theme) as Record<string, unknown> | null | undefined;
+      const customTheme =
+        rawTheme && typeof rawTheme === "object" && rawTheme.bgValue && rawTheme.btnColor
+          ? {
+              bgType: (rawTheme.bgType as "SOLID" | "GRADIENT" | "IMAGE") || "SOLID",
+              bgValue: String(rawTheme.bgValue),
+              btnStyle: (rawTheme.btnStyle as "FILLED" | "OUTLINE" | "SHADOW" | "ROUNDED" | "GLASS") || "FILLED",
+              btnColor: String(rawTheme.btnColor),
+              btnTextColor: String(rawTheme.btnTextColor || "#ffffff"),
+              textColor: String(rawTheme.textColor || "#fafafa"),
+              fontFamily: String(rawTheme.fontFamily || "Inter"),
+              btnRadius: typeof rawTheme.btnRadius === "number" ? rawTheme.btnRadius : 12,
+            }
+          : null;
+
+      setImportDraft({
+        fileName: file.name,
+        payload: {
+          title: typeof parsed.title === "string" ? parsed.title : undefined,
+          bio: typeof parsed.bio === "string" ? parsed.bio : undefined,
+          seoTitle: typeof parsed.seoTitle === "string" ? parsed.seoTitle : undefined,
+          seoDesc: typeof parsed.seoDesc === "string" ? parsed.seoDesc : undefined,
+          searchIndexing: typeof parsed.searchIndexing === "boolean" ? parsed.searchIndexing : undefined,
+          vcardEnabled: typeof parsed.vcardEnabled === "boolean" ? parsed.vcardEnabled : undefined,
+          customTheme,
+          links: normalizedLinks,
+          socialLinks: normalizedSocials,
+        },
+      });
+      setImportMode("MERGE");
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : "Could not parse JSON snapshot file.");
+    }
+  };
+
+  const handleConfirmImport = async () => {
+    if (!importDraft) return;
+    let activeProfileId = profileId;
+    if (!activeProfileId) {
+      const me = await fetchCurrentUser().catch(() => null);
+      if (me?.profile?.id) {
+        activeProfileId = me.profile.id;
+        setProfileId(activeProfileId);
+      }
+    }
+    if (!activeProfileId) {
+      setImportError("Profile ID not found. Please reload or log in again.");
+      return;
+    }
+
+    setImporting(true);
+    setImportError(null);
+    try {
+      const res = await apiImportProfileSnapshot(activeProfileId, {
+        mode: importMode,
+        ...importDraft.payload,
+      });
+
+      if (importDraft.payload.title !== undefined) setTitle(importDraft.payload.title || "");
+      if (importDraft.payload.bio !== undefined) setBio(importDraft.payload.bio || "");
+      if (importDraft.payload.seoTitle !== undefined) setSeoTitle(importDraft.payload.seoTitle || "");
+      if (importDraft.payload.seoDesc !== undefined) setSeoDesc(importDraft.payload.seoDesc || "");
+      if (importDraft.payload.searchIndexing !== undefined) setSearchIndexing(importDraft.payload.searchIndexing);
+      if (importDraft.payload.vcardEnabled !== undefined) setVcardEnabled(importDraft.payload.vcardEnabled);
+
+      setImportDraft(null);
+      setSavedNoticeText(
+        `Snapshot imported (${res.mode}): ${res.importedLinks} links & ${res.importedSocials} social links synchronized.`
+      );
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 4500);
+    } catch (err: unknown) {
+      setImportError(err instanceof Error ? err.message : "Snapshot import failed.");
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -286,7 +422,7 @@ export default function StudioSettingsPage() {
       {savedSuccess && (
         <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center space-x-2">
           <Sparkles className="w-4 h-4 shrink-0" />
-          <span>Settings successfully synchronized to database!</span>
+          <span>{savedNoticeText}</span>
         </div>
       )}
 
@@ -476,6 +612,31 @@ export default function StudioSettingsPage() {
                 </div>
               </div>
             </div>
+
+            {/* Dynamic OpenGraph Social Share Card Preview */}
+            {username && (
+              <div className="mt-4 p-4 rounded-xl bg-[#09090b] border border-white/5 space-y-2.5">
+                <div className="flex items-center justify-between text-[11px] text-zinc-500">
+                  <span className="flex items-center space-x-2">
+                    <ImageIcon className="w-3.5 h-3.5" />
+                    <span className="font-medium uppercase tracking-wider">
+                      Dynamic OpenGraph Social Card (1200×630)
+                    </span>
+                  </span>
+                  <span className="font-mono text-[10px] text-emerald-400">
+                    /api/og/{username}
+                  </span>
+                </div>
+                <div className="rounded-lg overflow-hidden border border-white/10 bg-zinc-950 aspect-1200/630">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`/api/og/${encodeURIComponent(username)}`}
+                    alt={`OpenGraph preview for @${username}`}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </section>
 
@@ -578,14 +739,31 @@ export default function StudioSettingsPage() {
                 settings.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={handleExportJSON}
-              className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-[#09090b] border border-white/10 hover:border-white/20 text-xs font-medium text-white transition-all shrink-0 cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Export Snapshot</span>
-            </button>
+            <div className="flex items-center gap-2.5 shrink-0">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json,application/json"
+                onChange={handleSelectSnapshotFile}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-[#09090b] border border-white/10 hover:border-white/25 text-xs font-medium text-white transition-all cursor-pointer"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Import Snapshot</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleExportJSON}
+                className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-[#09090b] border border-white/10 hover:border-white/20 text-xs font-medium text-white transition-all cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Export Snapshot</span>
+              </button>
+            </div>
           </div>
         </section>
 
@@ -655,6 +833,105 @@ export default function StudioSettingsPage() {
           </div>
         </section>
       </div>
+
+      {importDraft &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Import Creator Snapshot"
+            onClick={() => !importing && setImportDraft(null)}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-[#121215] border border-white/10 rounded-2xl p-6 shadow-2xl space-y-4 text-white"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-white/5">
+                <div className="flex items-center space-x-2">
+                  <Upload className="w-4 h-4 text-emerald-400" />
+                  <h3 className="text-base font-semibold">Restore Profile Snapshot</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => !importing && setImportDraft(null)}
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-zinc-900/90 border border-white/10 space-y-1.5 text-xs font-mono">
+                <div className="text-zinc-400 truncate">File: {importDraft.fileName}</div>
+                <div className="text-white">
+                  Detected: <strong>{importDraft.payload.links?.length || 0}</strong> links ·{" "}
+                  <strong>{importDraft.payload.socialLinks?.length || 0}</strong> social icons
+                </div>
+                <div className="text-zinc-400">
+                  Theme: {importDraft.payload.customTheme ? "Included" : "Unchanged"} · SEO &amp; Bio:{" "}
+                  {importDraft.payload.seoTitle || importDraft.payload.bio ? "Included" : "Partial"}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <span className="block text-xs font-mono uppercase text-zinc-400">Import Strategy</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setImportMode("MERGE")}
+                    className={`p-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer ${
+                      importMode === "MERGE"
+                        ? "bg-white text-zinc-950 border-white font-semibold"
+                        : "bg-zinc-900 border-white/10 text-zinc-300 hover:text-white"
+                    }`}
+                  >
+                    <div>Merge Links</div>
+                    <div className="text-[10px] opacity-75 font-normal">Keep current &amp; add new</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setImportMode("REPLACE")}
+                    className={`p-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer ${
+                      importMode === "REPLACE"
+                        ? "bg-rose-500 text-white border-rose-400 font-semibold"
+                        : "bg-zinc-900 border-white/10 text-zinc-300 hover:text-white"
+                    }`}
+                  >
+                    <div>Replace Links</div>
+                    <div className="text-[10px] opacity-75 font-normal">Overwrite current stack</div>
+                  </button>
+                </div>
+              </div>
+
+              {importError && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-300 text-xs font-mono">
+                  {importError}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-white/5">
+                <button
+                  type="button"
+                  disabled={importing}
+                  onClick={() => setImportDraft(null)}
+                  className="px-4 py-2 rounded-full border border-white/10 text-xs font-medium text-zinc-300 hover:text-white cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={importing}
+                  onClick={handleConfirmImport}
+                  className="px-4 py-2 rounded-full bg-white text-zinc-950 hover:bg-zinc-200 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {importing ? "Validating & Importing..." : "Import & Synchronize"}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

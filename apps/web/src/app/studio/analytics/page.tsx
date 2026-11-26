@@ -158,6 +158,14 @@ export default function StudioAnalyticsPage() {
       data.deviceBreakdown.forEach((d) => {
         lines.push([escape(d.name), escape(d.count), escape(`${d.percentage}%`)].join(","));
       });
+      lines.push("");
+
+      // 7. Geographic Country Distribution
+      lines.push([escape("--- GEOGRAPHIC COUNTRY DISTRIBUTION ---")].join(","));
+      lines.push([escape("Country Code"), escape("Visitor Count"), escape("Percentage")].join(","));
+      (data.countryBreakdown || []).forEach((c) => {
+        lines.push([escape(c.name), escape(c.count), escape(`${c.percentage}%`)].join(","));
+      });
 
       const csvContent =
         "data:text/csv;charset=utf-8," + encodeURIComponent(lines.join("\n"));
@@ -375,6 +383,7 @@ export default function StudioAnalyticsPage() {
               trafficSources={data.trafficSources}
               deviceBreakdown={data.deviceBreakdown}
               osBreakdown={data.osBreakdown}
+              countryBreakdown={data.countryBreakdown || []}
             />
           </section>
 

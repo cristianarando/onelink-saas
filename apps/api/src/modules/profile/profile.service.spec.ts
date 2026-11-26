@@ -68,12 +68,18 @@ describe('ProfileService', () => {
         deleteMany: jest.fn(),
       },
       socialLink: {
-        findMany: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([]),
         findFirst: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
         delete: jest.fn(),
+        deleteMany: jest.fn(),
         updateMany: jest.fn(),
+      },
+      link: {
+        findMany: jest.fn().mockResolvedValue([]),
+        create: jest.fn(),
+        deleteMany: jest.fn(),
       },
       user: {
         findUnique: jest.fn().mockResolvedValue(null),
@@ -309,6 +315,71 @@ describe('ProfileService', () => {
       });
       expect(redis.del).toHaveBeenCalledWith('profile:alexrivera');
       expect(result.position).toBe(3);
+    });
+  });
+
+  describe('importProfileSnapshot', () => {
+    it('should replace links in REPLACE mode and invalidate Redis cache', async () => {
+      prisma.profile.findUnique.mockResolvedValue({
+        id: mockProfile.id,
+        userId: mockProfile.userId,
+        username: mockProfile.username,
+      });
+
+      const res = await service.importProfileSnapshot(mockProfile.id, mockProfile.userId, {
+        mode: 'REPLACE',
+        title: 'Restored Name',
+        links: [
+          {
+            title: 'Restored Portfolio',
+            url: 'https://github.com/crisarando',
+            type: 'LINK',
+          },
+        ],
+      });
+
+      expect(prisma.link.deleteMany).toHaveBeenCalledWith({ where: { profileId: mockProfile.id } });
+      expect(prisma.link.create).toHaveBeenCalledTimes(1);
+      expect(redis.del).toHaveBeenCalledWith('profile:alexrivera');
+      expect(res).toEqual({
+        success: true,
+        mode: 'REPLACE',
+        importedLinks: 1,
+        importedSocials: 0,
+      });
+    });
+
+    it('should block malicious URLs during snapshot import via Sentinel AI', async () => {
+      prisma.profile.findUnique.mockResolvedValue({
+        id: mockProfile.id,
+        userId: mockProfile.userId,
+        username: mockProfile.username,
+      });
+
+      const sentinel = (service as any).sentinelAi;
+      sentinel.evaluateUrl.mockResolvedValueOnce({
+        isSafe: false,
+        riskScore: 0.96,
+        threatType: 'PHISHING',
+        aiConfidence: 0.99,
+        action: 'BLOCK_IMMEDIATE',
+        signals: ['Phishing heuristic'],
+      });
+
+      await expect(
+        service.importProfileSnapshot(mockProfile.id, mockProfile.userId, {
+          mode: 'MERGE',
+          links: [
+            {
+              title: 'Suspicious Link',
+              url: 'https://paypal-verify-login.xyz/auth',
+              type: 'LINK',
+            },
+          ],
+        }),
+      ).rejects.toThrow('Imported URL blocked by Sentinel AI');
+
+      expect(prisma.link.create).not.toHaveBeenCalled();
     });
   });
 });

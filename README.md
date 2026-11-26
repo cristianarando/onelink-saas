@@ -32,7 +32,7 @@
 | **Database** | [PostgreSQL 16](https://www.postgresql.org/) + [TimescaleDB](https://www.timescale.com/) | Relational core + time-series tables for telemetry & analytics |
 | **Cache & Blocklists** | [Redis 7](https://redis.io/) (`ioredis`) | Profile JSON cache-aside (`<15ms`), `O(1)` domain blocklists & session revocation |
 | **ML Threat Defense** | [ONNX Runtime](https://onnxruntime.ai/) (`onnxruntime-node`) | In-process Random Forest URL classifier trained on 235k PhiUSIIL URLs (`<18ms`) |
-| **Creator Studio Tools** | Custom QR Studio, OpenGraph Auto-Fill & UTM Builder | Vector SVG/1024px PNG QR export, SSRF-guarded metadata scraping & attribution builder |
+| **Creator Studio Tools** | Theme Engine 2.0, Custom QR Studio, Media Embeds, `next/og` & UTM Builder | 16 WCAG themes, vector SVG/PNG QR codes, YouTube/Spotify/GitHub embeds, dynamic OpenGraph cards & JSON snapshot import/export |
 | **Data Modeling & Validation** | [Prisma 7.10](https://www.prisma.io/) (`@prisma/adapter-pg`) + [Zod 3.24+](https://zod.dev/) | End-to-end type safety and shared request validation |
 | **Billing & Payments** | [Stripe SDK](https://stripe.com/) | Checkout sessions, webhooks, Customer Portal, VAT PDF invoices & dev sandbox |
 | **Local Infrastructure** | [Docker Compose](https://www.docker.com/) | Containerized TimescaleDB, Redis, and Mailhog |
@@ -184,8 +184,9 @@ All primary commands can be executed from the **monorepo root**:
 
 ### 🚀 Core Platform Capabilities
 - **Responsive Mobile Studio Dashboard**: Dynamic segmented control (`[ Editor | Live Preview ]`), responsive device frames (MacBook Pro 16" & fluid iPhone chassis), and non-colliding two-tier link cards.
-- **Interactive Digital Notepad (`NOTE` Block)**: Rich-text announcement and memo block that opens a frosted-glass reader modal with word count badge and one-click "Copy Text" button.
-- **WCAG AAA Theme Engine**: 8 calibrated high-contrast presets (Minimal Dark, Alpine Snow, Sunset Aurora, Forest Emerald, Midnight Ocean, Cyberpunk Neon, Bento Linen, Solar Gold).
+- **Theme Engine 2.0 & Live WCAG Contrast**: 16 curated presets (`Neo-Brutalist Pop`, `Glassmorphic Frosted`, `Tokyo Sakura`, `Nordic Matcha`, etc.), Frosted Glass (`GLASS`) and Hard Shadow (`SHADOW`) surfaces, 10 Google Fonts, zero-storage external image URL wallpapers, and real-time WCAG `AA / AAA` auto-fix telemetry.
+- **Interactive Media & Utility Blocks**: Dedicated `EMBED` blocks (YouTube facade, Spotify player, live GitHub repository card with stars/forks), `DONATION` tip blocks, and `NOTE` reader modals, plus Spotlight highlighting and live expiration countdown badges.
+- **Networking, SEO & Geo-Telemetry**: On-demand 1200×630 dynamic OpenGraph cards (`/api/og/[username]`), RFC 6350 `.vcf` digital contact card downloads, edge header country analytics (`Top Countries`), and validated JSON backup import/export.
 - **Enterprise Multi-User RBAC**: Numerical hierarchy (`Platform Owner (5)` > `Admin (4)` > `Safety Admin (3)` > `Content Editor (2)` > `Viewer (1)`) with anti-redundancy and anti-recursion guardrails.
 - **Stripe Tax Invoices & PDF Receipts**: Native Stripe customer portal integration and instant official PDF invoice receipt downloads.
 - **Sentinel AI Threat Engine**: Zero-token in-process lexical analysis and ONNX threat classification intercepting crypto-drainers, phishing, and malware in <18ms.
