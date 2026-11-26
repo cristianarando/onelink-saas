@@ -166,7 +166,7 @@ export interface ApiThemeData {
   name?: string;
   bgType: "SOLID" | "GRADIENT" | "IMAGE";
   bgValue: string;
-  btnStyle: "FILLED" | "OUTLINE" | "SHADOW" | "ROUNDED";
+  btnStyle: "FILLED" | "OUTLINE" | "SHADOW" | "ROUNDED" | "GLASS";
   btnColor: string;
   btnTextColor: string;
   textColor: string;
@@ -364,7 +364,7 @@ export async function apiSaveCustomTheme(
   themeData: {
     bgType: "SOLID" | "GRADIENT" | "IMAGE";
     bgValue: string;
-    btnStyle: "FILLED" | "OUTLINE" | "SHADOW" | "ROUNDED";
+    btnStyle: "FILLED" | "OUTLINE" | "SHADOW" | "ROUNDED" | "GLASS";
     btnColor: string;
     btnTextColor: string;
     textColor: string;

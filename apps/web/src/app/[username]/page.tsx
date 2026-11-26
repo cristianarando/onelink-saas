@@ -25,7 +25,7 @@ interface ProfileData {
     name: string;
     bgType: "SOLID" | "GRADIENT" | "IMAGE";
     bgValue: string;
-    btnStyle: "FILLED" | "OUTLINE" | "SHADOW" | "ROUNDED";
+    btnStyle: "FILLED" | "OUTLINE" | "SHADOW" | "ROUNDED" | "GLASS";
     btnColor: string;
     btnTextColor: string;
     fontFamily: string;
@@ -34,7 +34,7 @@ interface ProfileData {
   customTheme?: {
     bgType: "SOLID" | "GRADIENT" | "IMAGE";
     bgValue: string;
-    btnStyle: "FILLED" | "OUTLINE" | "SHADOW" | "ROUNDED";
+    btnStyle: "FILLED" | "OUTLINE" | "SHADOW" | "ROUNDED" | "GLASS";
     btnColor: string;
     btnTextColor: string;
     fontFamily: string;
@@ -345,9 +345,16 @@ async function ProfileContent({
   const containerStyle: React.CSSProperties = {
     color: textColor,
     fontFamily: resolveThemeFontFamily(activeTheme?.fontFamily),
-    ...(bgType === "GRADIENT"
-      ? { backgroundImage: bgValue }
-      : { backgroundColor: bgValue }),
+    ...(bgType === "IMAGE"
+      ? {
+          backgroundImage: `linear-gradient(180deg, rgba(9,9,11,0.52) 0%, rgba(9,9,11,0.78) 100%), url("${bgValue.replace(/"/g, "%22")}")`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundColor: "#09090b",
+        }
+      : bgType === "GRADIENT"
+        ? { backgroundImage: bgValue }
+        : { backgroundColor: bgValue }),
   };
 
   const displayName = profile.title || `@${cleanUsername}`;

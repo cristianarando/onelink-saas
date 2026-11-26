@@ -104,6 +104,7 @@ export const UpdateProfileSchema = z.object({
   seoTitle: z.string().max(60).nullable().optional(),
   seoDesc: z.string().max(160).nullable().optional(),
   searchIndexing: z.boolean().optional(),
+  vcardEnabled: z.boolean().optional(),
 });
 
 export type UpdateProfileInput = z.infer<typeof UpdateProfileSchema>;
@@ -115,7 +116,7 @@ export type UpdateProfileInput = z.infer<typeof UpdateProfileSchema>;
 export const BgTypeEnum = z.enum(['SOLID', 'GRADIENT', 'IMAGE']);
 export type BgType = z.infer<typeof BgTypeEnum>;
 
-export const BtnStyleEnum = z.enum(['FILLED', 'OUTLINE', 'SHADOW', 'ROUNDED']);
+export const BtnStyleEnum = z.enum(['FILLED', 'OUTLINE', 'SHADOW', 'ROUNDED', 'GLASS']);
 export type BtnStyle = z.infer<typeof BtnStyleEnum>;
 
 export const UpdateCustomThemeSchema = z.object({
@@ -178,7 +179,7 @@ export type ReorderSocialLinksInput = z.infer<typeof ReorderSocialLinksSchema>;
 // Link Schemas
 // ============================================================================
 
-export const LinkTypeEnum = z.enum(['LINK', 'HEADER', 'DIVIDER', 'DONATION', 'NOTE']);
+export const LinkTypeEnum = z.enum(['LINK', 'HEADER', 'DIVIDER', 'DONATION', 'NOTE', 'EMBED']);
 
 /**
  * Validates whether a raw string represents a valid internet web URL with a legitimate domain.
@@ -227,7 +228,9 @@ export const CreateLinkSchema = z
     content: z.string().max(5000).nullable().optional(),
     type: LinkTypeEnum.default('LINK'),
     thumbnailUrl: z.string().max(2048).nullable().optional(),
+    badge: z.string().max(50).nullable().optional(),
     isActive: z.boolean().default(true),
+    isFeatured: z.boolean().default(false),
     // Scheduling (Creator Pro)
     startsAt: z.string().datetime().nullable().optional(),
     expiresAt: z.string().datetime().nullable().optional(),
@@ -238,8 +241,8 @@ export const CreateLinkSchema = z
   })
   .refine(
     (data) => {
-      // For standard links and donation tips, a valid web URL with a domain is strictly required
-      if (data.type === 'LINK' || data.type === 'DONATION') {
+      // For standard links, embeds, and donation tips, a valid web URL with a domain is strictly required
+      if (data.type === 'LINK' || data.type === 'DONATION' || data.type === 'EMBED') {
         return Boolean(data.url && isValidWebUrl(data.url));
       }
       return true;
@@ -258,7 +261,9 @@ export const UpdateLinkSchema = z
     content: z.string().max(5000).nullable().optional(),
     type: LinkTypeEnum.optional(),
     thumbnailUrl: z.string().max(2048).nullable().optional(),
+    badge: z.string().max(50).nullable().optional(),
     isActive: z.boolean().optional(),
+    isFeatured: z.boolean().optional(),
     startsAt: z.string().datetime().nullable().optional(),
     expiresAt: z.string().datetime().nullable().optional(),
     isPasswordProtected: z.boolean().optional(),
@@ -270,7 +275,10 @@ export const UpdateLinkSchema = z
       if (data.type === 'HEADER' || data.type === 'DIVIDER' || data.type === 'NOTE') {
         return true;
       }
-      if (data.url !== undefined && (data.type === 'LINK' || data.type === 'DONATION')) {
+      if (
+        data.url !== undefined &&
+        (data.type === 'LINK' || data.type === 'DONATION' || data.type === 'EMBED')
+      ) {
         return Boolean(data.url && isValidWebUrl(data.url));
       }
       if (!data.type && data.url !== undefined && data.url !== null && data.url !== '#') {
@@ -284,6 +292,46 @@ export const UpdateLinkSchema = z
       path: ['url'],
     }
   );
+
+export const ImportProfileSnapshotSchema = z.object({
+  mode: z.enum(['MERGE', 'REPLACE']).default('MERGE'),
+  title: z.string().max(100).nullable().optional(),
+  bio: z.string().max(500).nullable().optional(),
+  seoTitle: z.string().max(60).nullable().optional(),
+  seoDesc: z.string().max(160).nullable().optional(),
+  searchIndexing: z.boolean().optional(),
+  vcardEnabled: z.boolean().optional(),
+  customTheme: UpdateCustomThemeSchema.nullable().optional(),
+  links: z
+    .array(
+      z.object({
+        title: z.string().min(1).max(200),
+        url: z.string().max(2048).nullable().optional(),
+        content: z.string().max(5000).nullable().optional(),
+        type: LinkTypeEnum.default('LINK'),
+        thumbnailUrl: z.string().max(2048).nullable().optional(),
+        badge: z.string().max(50).nullable().optional(),
+        isActive: z.boolean().optional(),
+        isFeatured: z.boolean().optional(),
+        startsAt: z.string().nullable().optional(),
+        expiresAt: z.string().nullable().optional(),
+        isAgeRestricted: z.boolean().optional(),
+      })
+    )
+    .max(100)
+    .optional(),
+  socialLinks: z
+    .array(
+      z.object({
+        platform: SocialPlatformEnum,
+        url: z.string().min(1).max(2048),
+        isActive: z.boolean().optional(),
+      })
+    )
+    .max(20)
+    .optional(),
+});
+export type ImportProfileSnapshotInput = z.infer<typeof ImportProfileSnapshotSchema>;
 
 export const ExtractUrlMetadataSchema = z.object({
   url: z
@@ -514,9 +562,9 @@ export const CANONICAL_PLANS: Record<'FREE' | 'PRO' | 'ENTERPRISE', CanonicalPla
 export interface CanonicalThemePreset {
   id: string;
   name: string;
-  bgType: 'SOLID' | 'GRADIENT';
+  bgType: 'SOLID' | 'GRADIENT' | 'IMAGE';
   bgValue: string;
-  btnStyle: 'FILLED' | 'OUTLINE' | 'SHADOW' | 'ROUNDED';
+  btnStyle: 'FILLED' | 'OUTLINE' | 'SHADOW' | 'ROUNDED' | 'GLASS';
   btnColor: string;
   btnTextColor: string;
   textColor: string;
@@ -622,6 +670,102 @@ export const CANONICAL_THEME_PRESETS: CanonicalThemePreset[] = [
     textColor: '#fef08a',
     btnRadius: 9999,
     fontFamily: 'Space Grotesk',
+  },
+  {
+    id: 'neo-brutalist-pop',
+    name: 'Neo-Brutalist Pop',
+    bgType: 'SOLID',
+    bgValue: '#fef08a',
+    btnStyle: 'SHADOW',
+    btnColor: '#ffffff',
+    btnTextColor: '#09090b',
+    textColor: '#09090b',
+    btnRadius: 10,
+    fontFamily: 'Space Grotesk',
+  },
+  {
+    id: 'tokyo-sakura',
+    name: 'Tokyo Sakura',
+    bgType: 'GRADIENT',
+    bgValue: 'linear-gradient(135deg, #1f121d 0%, #3b122c 50%, #18181b 100%)',
+    btnStyle: 'FILLED',
+    btnColor: '#fbcfe8',
+    btnTextColor: '#3b0724',
+    textColor: '#fdf2f8',
+    btnRadius: 9999,
+    fontFamily: 'Outfit',
+  },
+  {
+    id: 'glassmorphic-frosted',
+    name: 'Glassmorphic Frosted',
+    bgType: 'GRADIENT',
+    bgValue: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%)',
+    btnStyle: 'GLASS',
+    btnColor: 'rgba(255, 255, 255, 0.14)',
+    btnTextColor: '#ffffff',
+    textColor: '#f8fafc',
+    btnRadius: 16,
+    fontFamily: 'Plus Jakarta Sans',
+  },
+  {
+    id: 'nordic-matcha',
+    name: 'Nordic Matcha',
+    bgType: 'SOLID',
+    bgValue: '#f2f5ef',
+    btnStyle: 'FILLED',
+    btnColor: '#2d4030',
+    btnTextColor: '#f2f5ef',
+    textColor: '#1c2a1e',
+    btnRadius: 14,
+    fontFamily: 'DM Sans',
+  },
+  {
+    id: 'crimson-velvet',
+    name: 'Crimson Velvet',
+    bgType: 'GRADIENT',
+    bgValue: 'linear-gradient(135deg, #180609 0%, #3f0d16 60%, #1f080d 100%)',
+    btnStyle: 'OUTLINE',
+    btnColor: '#fda4af',
+    btnTextColor: '#ffe4e6',
+    textColor: '#fff1f2',
+    btnRadius: 12,
+    fontFamily: 'Playfair Display',
+  },
+  {
+    id: 'monochrome-editorial',
+    name: 'Monochrome Editorial',
+    bgType: 'SOLID',
+    bgValue: '#ffffff',
+    btnStyle: 'SHADOW',
+    btnColor: '#f8fafc',
+    btnTextColor: '#09090b',
+    textColor: '#09090b',
+    btnRadius: 0,
+    fontFamily: 'Playfair Display',
+  },
+  {
+    id: 'synthwave-dusk',
+    name: 'Synthwave Dusk',
+    bgType: 'GRADIENT',
+    bgValue: 'linear-gradient(135deg, #090418 0%, #240b36 55%, #4c1d95 100%)',
+    btnStyle: 'GLASS',
+    btnColor: 'rgba(244, 114, 182, 0.18)',
+    btnTextColor: '#fdf4ff',
+    textColor: '#fae8ff',
+    btnRadius: 12,
+    fontFamily: 'Fira Code',
+  },
+  {
+    id: 'carbon-copper',
+    name: 'Carbon Copper',
+    bgType: 'SOLID',
+    bgValue: '#12100e',
+    btnStyle: 'FILLED',
+    btnColor: '#d97706',
+    btnTextColor: '#09090b',
+    textColor: '#fef3c7',
+    btnRadius: 8,
+    fontFamily: 'Outfit',
   },
 ];
 

@@ -7,6 +7,10 @@ import {
   Space_Grotesk,
   JetBrains_Mono,
   Merriweather,
+  Outfit,
+  Playfair_Display,
+  DM_Sans,
+  Fira_Code,
 } from "next/font/google";
 import "./globals.css";
 
@@ -43,6 +47,27 @@ const jetbrainsMonoFont = JetBrains_Mono({
 const merriweatherFont = Merriweather({
   variable: "--font-merriweather",
   weight: ["400", "700"],
+  subsets: ["latin"],
+});
+
+const outfitFont = Outfit({
+  variable: "--font-outfit",
+  subsets: ["latin"],
+});
+
+const playfairFont = Playfair_Display({
+  variable: "--font-playfair",
+  weight: ["400", "600", "700"],
+  subsets: ["latin"],
+});
+
+const dmSansFont = DM_Sans({
+  variable: "--font-dm-sans",
+  subsets: ["latin"],
+});
+
+const firaCodeFont = Fira_Code({
+  variable: "--font-fira-code",
   subsets: ["latin"],
 });
 
@@ -145,7 +170,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${interFont.variable} ${jakartaFont.variable} ${spaceGroteskFont.variable} ${jetbrainsMonoFont.variable} ${merriweatherFont.variable} h-full dark antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${interFont.variable} ${jakartaFont.variable} ${spaceGroteskFont.variable} ${jetbrainsMonoFont.variable} ${merriweatherFont.variable} ${outfitFont.variable} ${playfairFont.variable} ${dmSansFont.variable} ${firaCodeFont.variable} h-full dark antialiased`}
     >
       <head>
         <script
