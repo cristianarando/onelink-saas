@@ -119,10 +119,14 @@ export class LinkService {
     const profile = await this.verifyProfileOwnership(profileId, userId, role, 'EDITOR');
 
     // 1. Sentinel AI URL safety validation
-    const isOutbound = dto.type === LinkType.LINK || dto.type === LinkType.DONATION || !dto.type;
+    const isOutbound =
+      dto.type === LinkType.LINK ||
+      dto.type === LinkType.DONATION ||
+      dto.type === LinkType.EMBED ||
+      !dto.type;
     if (isOutbound) {
       if (!dto.url || !dto.url.trim()) {
-        throw new BadRequestException('A valid destination URL is required for links and donation blocks.');
+        throw new BadRequestException('A valid destination URL is required for links, embeds, and donation blocks.');
       }
       await this.validateOutboundUrl(dto.url, userId, clientIp);
     }
@@ -160,9 +164,14 @@ export class LinkService {
       }
 
       const maxLinks = features.maxLinks ?? 5;
-      if (dto.type === LinkType.LINK || dto.type === LinkType.DONATION || !dto.type) {
+      if (
+        dto.type === LinkType.LINK ||
+        dto.type === LinkType.DONATION ||
+        dto.type === LinkType.EMBED ||
+        !dto.type
+      ) {
         const currentCount = await this.prisma.link.count({
-          where: { profileId, type: { in: [LinkType.LINK, LinkType.DONATION] } },
+          where: { profileId, type: { in: [LinkType.LINK, LinkType.DONATION, LinkType.EMBED] } },
         });
         if (currentCount >= maxLinks) {
           throw new BadRequestException(
@@ -211,6 +220,7 @@ export class LinkService {
         password: hashedPassword,
         isAgeRestricted: Boolean(dto.isAgeRestricted),
         badge: dto.badge || null,
+        isFeatured: Boolean(dto.isFeatured),
       },
       select: {
         id: true,
@@ -228,6 +238,7 @@ export class LinkService {
         isPasswordProtected: true,
         isAgeRestricted: true,
         badge: true,
+        isFeatured: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -266,6 +277,7 @@ export class LinkService {
         isPasswordProtected: true,
         isAgeRestricted: true,
         badge: true,
+        isFeatured: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -336,13 +348,14 @@ export class LinkService {
     const isOutbound =
       dto.type === LinkType.LINK ||
       dto.type === LinkType.DONATION ||
+      dto.type === LinkType.EMBED ||
       (!dto.type &&
         existing.type !== LinkType.HEADER &&
         existing.type !== LinkType.DIVIDER &&
         existing.type !== LinkType.NOTE);
     if (isOutbound && dto.url !== undefined) {
       if (!dto.url || !dto.url.trim()) {
-        throw new BadRequestException('A valid destination URL is required for links and donation blocks.');
+        throw new BadRequestException('A valid destination URL is required for links, embeds, and donation blocks.');
       }
       if (dto.url !== existing.url) {
         await this.validateOutboundUrl(dto.url, userId, clientIp);
@@ -381,6 +394,7 @@ export class LinkService {
         password: hashedPassword,
         isAgeRestricted: dto.isAgeRestricted,
         badge: dto.badge !== undefined ? dto.badge : undefined,
+        isFeatured: dto.isFeatured,
       },
       select: {
         id: true,
@@ -398,6 +412,7 @@ export class LinkService {
         isPasswordProtected: true,
         isAgeRestricted: true,
         badge: true,
+        isFeatured: true,
         createdAt: true,
         updatedAt: true,
       },

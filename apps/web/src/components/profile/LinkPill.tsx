@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
-import { ChevronRight, Lock, ShieldAlert, Coffee, StickyNote, Copy, Check } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { ChevronRight, Lock, ShieldAlert, Coffee, StickyNote, Copy, Check, Clock, Sparkles } from "lucide-react";
 import { ProtectedLinkModal } from "./ProtectedLinkModal";
 import { AgeGateModal } from "./AgeGateModal";
+import { EmbedBlock } from "./EmbedBlock";
+import { formatExpirationCountdown } from "@/lib/embed-parser";
 import { renderLinkIcon } from "@/components/studio/IconHelper";
 import { getApiBaseUrl } from "@/lib/api-config";
 import { isLightColor } from "@/lib/theme-contrast";
@@ -13,10 +15,12 @@ interface LinkPillProps {
   title: string;
   url: string | null;
   content?: string | null;
-  type: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE";
+  type: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE" | "EMBED";
   thumbnailUrl: string | null;
   profileId: string;
   badge?: string | null;
+  isFeatured?: boolean;
+  expiresAt?: string | null;
   btnStyle?: string;
   btnColor?: string;
   btnTextColor?: string;
@@ -36,6 +40,8 @@ export function LinkPill({
   thumbnailUrl,
   profileId,
   badge,
+  isFeatured = false,
+  expiresAt,
   btnStyle = "FILLED",
   btnColor = "#27272a",
   btnTextColor = "#ffffff",
@@ -49,6 +55,19 @@ export function LinkPill({
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [copiedNote, setCopiedNote] = useState(false);
+  const [nowMs, setNowMs] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!expiresAt) return;
+    const initTimer = setTimeout(() => setNowMs(Date.now()), 0);
+    const interval = setInterval(() => setNowMs(Date.now()), 60000);
+    return () => {
+      clearTimeout(initTimer);
+      clearInterval(interval);
+    };
+  }, [expiresAt]);
+
+  const countdownLabel = formatExpirationCountdown(expiresAt, nowMs);
 
   const isPageLight = isLightColor(
     pageBgColor || (isLightColor(btnColor) && btnTextColor !== "#ffffff" ? "#ffffff" : null)
@@ -189,6 +208,27 @@ export function LinkPill({
   };
 
   const destination = isPasswordProtected ? "#" : url || "#";
+
+  // 2.5 Rich Interactive Media Embed Block (YouTube, Spotify, GitHub Repo)
+  if (type === "EMBED") {
+    return (
+      <EmbedBlock
+        id={id}
+        title={title}
+        url={url}
+        content={content}
+        badge={badge}
+        isFeatured={isFeatured}
+        countdownLabel={countdownLabel}
+        isPageLight={isPageLight}
+        btnStyle={btnStyle}
+        btnColor={btnColor}
+        btnTextColor={btnTextColor}
+        btnRadius={btnRadius}
+        onInteract={sendClickTelemetry}
+      />
+    );
+  }
 
   // 3. Donation / Tip Block
   if (type === "DONATION") {
@@ -435,7 +475,9 @@ export function LinkPill({
         rel="noopener noreferrer"
         onClick={handleLinkClick}
         style={getDynamicStyles()}
-        className="group relative flex items-center justify-between w-full min-h-14 px-4 py-3 tactile-press shadow-md shadow-black/20 hover:opacity-95 transition-all duration-150"
+        className={`group relative flex items-center justify-between w-full min-h-14 px-4 py-3 tactile-press shadow-md shadow-black/20 hover:opacity-95 transition-all duration-150 ${
+          isFeatured ? "ring-2 ring-amber-400/80 shadow-[0_0_24px_rgba(251,191,36,0.22)]" : ""
+        }`}
       >
         <div className="flex items-center gap-3 min-w-0 pr-2">
           {thumbnailUrl && !thumbnailUrl.startsWith("icon:") ? (
@@ -456,6 +498,31 @@ export function LinkPill({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {isFeatured && (
+            <span
+              className={`hidden xs:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider shrink-0 ${
+                isEffectiveBtnLight
+                  ? "bg-amber-500/20 border border-amber-600/30 text-amber-950"
+                  : "bg-amber-400/20 border border-amber-400/40 text-amber-300"
+              }`}
+            >
+              <Sparkles className="w-2.5 h-2.5" />
+              <span>Spotlight</span>
+            </span>
+          )}
+          {countdownLabel && (
+            <span
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold shrink-0 ${
+                isEffectiveBtnLight
+                  ? "bg-blue-500/15 border border-blue-500/30 text-blue-950"
+                  : "bg-blue-500/20 border border-blue-400/30 text-blue-200"
+              }`}
+              title="Time remaining before link expires"
+            >
+              <Clock className="w-2.5 h-2.5" />
+              <span>{countdownLabel}</span>
+            </span>
+          )}
           {badge && (
             <span
               className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider shrink-0 ${

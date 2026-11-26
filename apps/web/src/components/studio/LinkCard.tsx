@@ -14,6 +14,8 @@ import {
   Lock,
   ShieldAlert,
   StickyNote,
+  Code2,
+  Sparkles,
 } from "lucide-react";
 import { renderLinkIcon } from "./IconHelper";
 
@@ -22,10 +24,11 @@ export interface StudioLinkItem {
   title: string;
   url: string;
   content?: string | null;
-  type: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE";
+  type: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE" | "EMBED";
   isActive: boolean;
   clicks: number;
   badge?: string;
+  isFeatured?: boolean;
   icon?: string;
   thumbnailUrl?: string | null;
   position: number;
@@ -248,9 +251,19 @@ export function LinkCard({
                 Disabled
               </span>
             )}
+            {item.isFeatured && (
+              <span className="px-1.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-400/40 text-[9px] font-mono font-semibold text-amber-300 flex items-center gap-1 shrink-0">
+                <Sparkles className="w-2.5 h-2.5" /> Spotlight
+              </span>
+            )}
             {item.badge && (
               <span className="px-1.5 py-0.5 rounded-full bg-zinc-800 border border-white/10 text-[9px] font-mono font-medium text-zinc-300 shrink-0">
                 {item.badge}
+              </span>
+            )}
+            {item.type === "EMBED" && (
+              <span className="px-1.5 py-0.5 rounded-full bg-sky-500/10 border border-sky-500/30 text-[9px] font-mono text-sky-300 flex items-center gap-1 shrink-0">
+                <Code2 className="w-2.5 h-2.5" /> Embed
               </span>
             )}
             {item.type === "DONATION" && (
@@ -341,7 +354,7 @@ export function LinkCard({
             <Copy className="w-3.5 h-3.5" />
           </button>
 
-          {(item.type === "LINK" || item.type === "DONATION" || !item.type) && item.url && (
+          {(item.type === "LINK" || item.type === "DONATION" || item.type === "EMBED" || !item.type) && item.url && (
             <a
               href={item.url.startsWith("http") ? item.url : "https://" + item.url}
               target="_blank"

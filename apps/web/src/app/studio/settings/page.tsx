@@ -37,6 +37,7 @@ export default function StudioSettingsPage() {
   const [seoDesc, setSeoDesc] = useState<string>("");
   const [isPublished, setIsPublished] = useState<boolean>(true);
   const [searchIndexing, setSearchIndexing] = useState<boolean>(true);
+  const [vcardEnabled, setVcardEnabled] = useState<boolean>(true);
 
   const [saving, setSaving] = useState<boolean>(false);
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
@@ -97,6 +98,7 @@ export default function StudioSettingsPage() {
           if (p.seoDesc) setSeoDesc(p.seoDesc);
           if (p.isPublished !== undefined) setIsPublished(p.isPublished);
           if (p.searchIndexing !== undefined) setSearchIndexing(p.searchIndexing);
+          if (p.vcardEnabled !== undefined) setVcardEnabled(p.vcardEnabled);
         }
       } catch {
         // Fallback to default state
@@ -189,6 +191,7 @@ export default function StudioSettingsPage() {
         seoDesc,
         isPublished,
         searchIndexing,
+        vcardEnabled,
       };
       const ok = await apiUpdateProfile(activeProfileId, payload);
       if (ok) {
@@ -220,6 +223,7 @@ export default function StudioSettingsPage() {
       seoDesc,
       isPublished,
       searchIndexing,
+      vcardEnabled,
       theme: fullProfile?.theme || null,
       customTheme: fullProfile?.customTheme || null,
       links: fullProfile?.links || [],
@@ -514,6 +518,34 @@ export default function StudioSettingsPage() {
                   searchIndexing ? "bg-black" : "bg-zinc-400"
                 } shadow-lg ring-0 transition duration-200 ease-in-out ${
                   searchIndexing ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between pt-4 border-t border-white/5">
+            <div className="space-y-0.5">
+              <span className="text-xs font-semibold text-white">
+                Digital Contact Card (vCard .vcf)
+              </span>
+              <p className="text-xs text-zinc-400 max-w-md">
+                Allow visitors to save your name, bio, public link, and social handles directly to mobile contacts.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={vcardEnabled}
+              onClick={() => setVcardEnabled(!vcardEnabled)}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                vcardEnabled ? "bg-white" : "bg-zinc-800"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full ${
+                  vcardEnabled ? "bg-black" : "bg-zinc-400"
+                } shadow-lg ring-0 transition duration-200 ease-in-out ${
+                  vcardEnabled ? "translate-x-5" : "translate-x-0"
                 }`}
               />
             </button>

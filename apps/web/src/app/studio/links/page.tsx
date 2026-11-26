@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Heading, Minus, Sparkles, ArrowUpDown, Lock, Coffee, X, CheckCircle2, Sliders, Eye, StickyNote, AlertTriangle } from "lucide-react";
+import { Plus, Heading, Minus, Sparkles, ArrowUpDown, Lock, Coffee, X, CheckCircle2, Sliders, Eye, StickyNote, AlertTriangle, Code2 } from "lucide-react";
 import { LinkCard, StudioLinkItem } from "@/components/studio/LinkCard";
 import { AddEditLinkModal } from "@/components/studio/AddEditLinkModal";
 import { PhonePreview, PhonePreviewTheme } from "@/components/studio/PhonePreview";
@@ -32,7 +32,7 @@ export default function StudioLinksPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<StudioLinkItem | null>(null);
   const [modalDefaultType, setModalDefaultType] = useState<
-    "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE"
+    "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE" | "EMBED"
   >("LINK");
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [subscription, setSubscription] = useState<BillingSubscription | null>(null);
@@ -181,10 +181,11 @@ export default function StudioLinksPage() {
             title: string;
             url?: string | null;
             content?: string | null;
-            type: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE";
+            type: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE" | "EMBED";
             position: number;
             thumbnailUrl?: string | null;
             badge?: string | null;
+            isFeatured?: boolean;
             isActive?: boolean;
             clickCount?: number;
             startsAt?: string | null;
@@ -200,6 +201,7 @@ export default function StudioLinksPage() {
             type: l.type,
             thumbnailUrl: l.thumbnailUrl,
             badge: l.badge || undefined,
+            isFeatured: Boolean(l.isFeatured),
             isActive: l.isActive !== false,
             clicks: typeof l.clickCount === "number" ? l.clickCount : 0,
             position: l.position,
@@ -412,6 +414,7 @@ export default function StudioLinksPage() {
           type: newItem.type,
           thumbnailUrl: newItem.thumbnailUrl,
           badge: newItem.badge,
+          isFeatured: newItem.isFeatured,
           startsAt: newItem.startsAt,
           expiresAt: newItem.expiresAt,
           isPasswordProtected: newItem.isPasswordProtected,
@@ -455,7 +458,7 @@ export default function StudioLinksPage() {
   };
 
   // Open modal for new item
-  const handleOpenAdd = (type: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE") => {
+  const handleOpenAdd = (type: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE" | "EMBED") => {
     setEditingItem(null);
     setModalDefaultType(type);
     setModalOpen(true);
@@ -499,6 +502,7 @@ export default function StudioLinksPage() {
         type: data.type,
         thumbnailUrl: data.thumbnailUrl,
         badge: data.badge,
+        isFeatured: data.isFeatured,
         isActive: data.isActive,
         startsAt: data.startsAt,
         expiresAt: data.expiresAt,
@@ -517,6 +521,7 @@ export default function StudioLinksPage() {
               type: data.type,
               thumbnailUrl: data.thumbnailUrl,
               isActive: data.isActive,
+              isFeatured: data.isFeatured,
               badge: data.badge,
               startsAt: data.startsAt,
               expiresAt: data.expiresAt,
@@ -536,6 +541,7 @@ export default function StudioLinksPage() {
         type: data.type,
         thumbnailUrl: data.thumbnailUrl,
         badge: data.badge,
+        isFeatured: data.isFeatured,
         startsAt: data.startsAt,
         expiresAt: data.expiresAt,
         isPasswordProtected: data.isPasswordProtected,
@@ -551,6 +557,7 @@ export default function StudioLinksPage() {
         type: (created.type as StudioLinkItem["type"]) || data.type,
         thumbnailUrl: created.thumbnailUrl || data.thumbnailUrl,
         isActive: created.isActive ?? data.isActive ?? true,
+        isFeatured: created.isFeatured ?? data.isFeatured ?? false,
         badge: data.badge,
         clicks: Number(created.clickCount || 0),
         position: items.length,
@@ -652,7 +659,7 @@ export default function StudioLinksPage() {
   const activeCount = items.filter((i) => i.isActive).length;
   const archivedCount = items.filter((i) => !i.isActive).length;
   const activeDestinationCount = items.filter(
-    (i) => (i.type === "LINK" || i.type === "DONATION" || !i.type) && i.isActive
+    (i) => (i.type === "LINK" || i.type === "DONATION" || i.type === "EMBED" || !i.type) && i.isActive
   ).length;
   const isFreeTier = !subscription || subscription.plan?.code === "FREE";
   const freeLimitReached = isFreeTier && activeDestinationCount >= 5;
@@ -821,6 +828,15 @@ export default function StudioLinksPage() {
             >
               <StickyNote className="w-3.5 h-3.5" />
               <span>+ Add Note</span>
+            </button>
+
+            {/* Add Rich Media Embed */}
+            <button
+              onClick={() => handleOpenAdd("EMBED")}
+              className="inline-flex items-center space-x-1.5 border border-sky-500/30 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 rounded-full px-3.5 py-2 text-xs sm:text-sm font-medium transition-all active:scale-95 cursor-pointer"
+            >
+              <Code2 className="w-3.5 h-3.5" />
+              <span>+ Embed</span>
             </button>
           </div>
 

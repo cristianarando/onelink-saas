@@ -259,6 +259,49 @@ describe('LinkService (with Sentinel AI Interception)', () => {
         }),
       ).rejects.toThrow('Plan limit reached (5/5 links)');
     });
+
+    it('should validate EMBED URL with Sentinel AI and persist isFeatured flag', async () => {
+      sentinelAiService.evaluateUrl.mockResolvedValue({
+        isSafe: true,
+        riskScore: 0.02,
+        action: 'ALLOW',
+        aiConfidence: 0.99,
+        signals: [],
+      });
+
+      prismaService.link.findFirst.mockResolvedValue(null);
+      prismaService.link.create.mockResolvedValue({
+        id: 'embed-1',
+        profileId: mockProfileId,
+        title: 'System Design Walkthrough',
+        url: 'https://youtu.be/dQw4w9WgXcQ',
+        content: 'collapsible',
+        type: 'EMBED',
+        isFeatured: true,
+        position: 0,
+        clickCount: 0n,
+      });
+
+      const created = await service.createLink(mockProfileId, mockUserId, {
+        title: 'System Design Walkthrough',
+        url: 'https://youtu.be/dQw4w9WgXcQ',
+        content: 'collapsible',
+        type: 'EMBED' as any,
+        isFeatured: true,
+      });
+
+      expect(sentinelAiService.evaluateUrl).toHaveBeenCalledWith('https://youtu.be/dQw4w9WgXcQ');
+      expect(prismaService.link.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            type: 'EMBED',
+            isFeatured: true,
+            content: 'collapsible',
+          }),
+        }),
+      );
+      expect(created.isFeatured).toBe(true);
+    });
   });
 
   describe('updateLink', () => {

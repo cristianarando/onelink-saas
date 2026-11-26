@@ -180,10 +180,11 @@ export interface ApiLinkRecord {
   title: string;
   url?: string | null;
   content?: string | null;
-  type: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE";
+  type: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE" | "EMBED";
   position: number;
   thumbnailUrl?: string | null;
   badge?: string | null;
+  isFeatured?: boolean;
   isActive?: boolean;
   clickCount?: number;
   startsAt?: string | null;
@@ -203,6 +204,7 @@ export interface ApiProfileResponse {
   seoDesc?: string | null;
   isPublished?: boolean;
   searchIndexing?: boolean;
+  vcardEnabled?: boolean;
   theme?: ApiThemeData | null;
   customTheme?: ApiThemeData | null;
   links?: ApiLinkRecord[];
@@ -242,8 +244,9 @@ export async function apiCreateLink(
     title: string;
     url: string;
     content?: string | null;
-    type?: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE";
+    type?: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE" | "EMBED";
     badge?: string | null;
+    isFeatured?: boolean;
     thumbnailUrl?: string | null;
     startsAt?: string | null;
     expiresAt?: string | null;
@@ -273,7 +276,8 @@ export async function apiUpdateLink(
     url?: string;
     content?: string | null;
     isActive?: boolean;
-    type?: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE";
+    isFeatured?: boolean;
+    type?: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE" | "EMBED";
     badge?: string | null;
     thumbnailUrl?: string | null;
     startsAt?: string | null;
@@ -392,6 +396,7 @@ export interface UpdateProfilePayload {
   seoDesc?: string | null;
   themeId?: string | null;
   searchIndexing?: boolean;
+  vcardEnabled?: boolean;
 }
 
 /**

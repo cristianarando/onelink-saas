@@ -198,6 +198,31 @@ describe('ProfileService', () => {
       expect(result.bio).toBe('Updated Bio');
     });
 
+    it('should update vcardEnabled preference cleanly', async () => {
+      prisma.profile.findUnique.mockResolvedValue({
+        id: mockProfile.id,
+        userId: mockProfile.userId,
+        username: mockProfile.username,
+      });
+      prisma.profile.update.mockResolvedValue({
+        ...mockProfile,
+        vcardEnabled: false,
+      });
+
+      const result = await service.updateProfile(
+        mockProfile.id,
+        mockProfile.userId,
+        { vcardEnabled: false },
+      );
+
+      expect(prisma.profile.update).toHaveBeenCalledWith({
+        where: { id: mockProfile.id },
+        data: expect.objectContaining({ vcardEnabled: false }),
+        include: { theme: true, customTheme: true },
+      });
+      expect(result.vcardEnabled).toBe(false);
+    });
+
     it('should throw ForbiddenException if user is not profile owner', async () => {
       prisma.profile.findUnique.mockResolvedValue({
         id: mockProfile.id,

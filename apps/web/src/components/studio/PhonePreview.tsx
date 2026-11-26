@@ -14,10 +14,14 @@ import {
   StickyNote,
   Copy,
   Check,
+  Sparkles,
+  Clock,
 } from "lucide-react";
 import { StudioLinkItem } from "./LinkCard";
 import { renderLinkIcon } from "./IconHelper";
 import { SocialIcon } from "@/components/profile/SocialIcon";
+import { EmbedBlock } from "@/components/profile/EmbedBlock";
+import { formatExpirationCountdown } from "@/lib/embed-parser";
 import { isLightColor, resolveThemeFontFamily } from "@/lib/theme-contrast";
 import { QrCodeModal } from "./QrCodeModal";
 
@@ -301,6 +305,27 @@ export function PhonePreview({
               );
             }
 
+            if (item.type === "EMBED") {
+              return (
+                <EmbedBlock
+                  key={item.id}
+                  id={item.id}
+                  title={item.title}
+                  url={item.url}
+                  content={item.content}
+                  badge={item.badge}
+                  isFeatured={item.isFeatured}
+                  countdownLabel={formatExpirationCountdown(item.expiresAt, now)}
+                  isPageLight={isPageLight}
+                  btnStyle={theme?.btnStyle}
+                  btnColor={theme?.btnColor}
+                  btnTextColor={theme?.btnTextColor}
+                  btnRadius={theme?.btnRadius}
+                  compactPreview
+                />
+              );
+            }
+
             if (item.type === "NOTE") {
               return (
                 <button
@@ -356,6 +381,8 @@ export function PhonePreview({
               );
             }
 
+            const previewCountdown = formatExpirationCountdown(item.expiresAt, now);
+
             return (
               <a
                 key={item.id}
@@ -363,7 +390,9 @@ export function PhonePreview({
                 target="_blank"
                 rel="noopener noreferrer"
                 style={getButtonInlineStyle()}
-                className="phone-item w-full flex items-center justify-between p-3 text-left transition-all duration-150 group cursor-pointer shadow-sm"
+                className={`phone-item w-full flex items-center justify-between p-3 text-left transition-all duration-150 group cursor-pointer shadow-sm ${
+                  item.isFeatured ? "ring-2 ring-amber-400/80 shadow-[0_0_18px_rgba(251,191,36,0.22)]" : ""
+                }`}
               >
                 <div className="flex items-center space-x-2.5 min-w-0 pr-2">
                   <div className="shrink-0">{getLinkIcon(item.url, item.thumbnailUrl)}</div>
@@ -375,6 +404,23 @@ export function PhonePreview({
                   </span>
                 </div>
                 <div className="flex items-center space-x-1.5 shrink-0">
+                  {item.isFeatured && (
+                    <span className="p-0.5 rounded-full bg-amber-400/20 text-amber-300" title="Spotlight">
+                      <Sparkles className="w-2.5 h-2.5" />
+                    </span>
+                  )}
+                  {previewCountdown && (
+                    <span
+                      className={`px-1.5 py-0.5 rounded-full text-[8px] font-mono font-semibold flex items-center gap-0.5 ${
+                        isEffectiveBtnLight
+                          ? "bg-blue-500/15 text-blue-950"
+                          : "bg-blue-500/20 text-blue-200"
+                      }`}
+                    >
+                      <Clock className="w-2.5 h-2.5" />
+                      <span>{previewCountdown}</span>
+                    </span>
+                  )}
                   {item.badge && (
                     <span
                       className={`px-2 py-0.5 rounded-full text-[9px] font-mono font-bold uppercase tracking-wider shrink-0 ${
