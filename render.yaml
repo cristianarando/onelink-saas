@@ -5,7 +5,7 @@ services:
     plan: free
     region: ohio
     buildCommand: pnpm install --no-frozen-lockfile && pnpm --filter @repo/prisma build && pnpm --filter @repo/shared build && pnpm --filter api build
-    startCommand: pnpm --filter api start:prod
+    startCommand: pnpm --filter @repo/prisma db:push && pnpm --filter api start:prod
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:

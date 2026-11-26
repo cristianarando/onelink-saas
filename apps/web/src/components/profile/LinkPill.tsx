@@ -163,6 +163,16 @@ export function LinkPill({
           border: "2px solid #000000",
           boxShadow: "4px 4px 0px #000000",
         };
+      case "GLASS":
+        return {
+          backgroundColor: btnColor.startsWith("rgba") ? btnColor : "rgba(255, 255, 255, 0.14)",
+          color: btnTextColor,
+          borderRadius: baseRadius,
+          border: isPageLight ? "1px solid rgba(0, 0, 0, 0.15)" : "1px solid rgba(255, 255, 255, 0.24)",
+          backdropFilter: "blur(14px)",
+          WebkitBackdropFilter: "blur(14px)",
+          boxShadow: "0 8px 24px rgba(0, 0, 0, 0.18)",
+        };
       case "ROUNDED":
       case "FILLED":
       default:

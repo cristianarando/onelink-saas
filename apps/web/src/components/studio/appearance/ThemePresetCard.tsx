@@ -7,9 +7,9 @@ import { isLightColor } from "@/lib/theme-contrast";
 export interface ThemePreset {
   id: string;
   name: string;
-  bgType: "SOLID" | "GRADIENT";
+  bgType: "SOLID" | "GRADIENT" | "IMAGE";
   bgValue: string;
-  btnStyle: "FILLED" | "OUTLINE" | "SHADOW" | "ROUNDED";
+  btnStyle: "FILLED" | "OUTLINE" | "SHADOW" | "ROUNDED" | "GLASS";
   btnColor: string;
   btnTextColor: string;
   textColor: string;
@@ -29,8 +29,41 @@ export function ThemePresetCard({
   isSelected,
   onSelect,
 }: ThemePresetCardProps) {
-  const isLight = isLightColor(preset.bgValue);
+  const isLight = preset.bgType === "IMAGE" ? false : isLightColor(preset.bgValue);
   const isPillLight = isLightColor(preset.btnColor);
+
+  const cardBackgroundStyle: React.CSSProperties =
+    preset.bgType === "IMAGE"
+      ? {
+          backgroundImage: `linear-gradient(rgba(9,9,11,0.55), rgba(9,9,11,0.75)), url("${preset.bgValue}")`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }
+      : {
+          background: preset.bgValue,
+        };
+
+  const getMiniPillStyle = (widthClass: string): React.CSSProperties => {
+    const base: React.CSSProperties = {
+      borderRadius: `${Math.min(preset.btnRadius, 9999)}px`,
+      opacity: widthClass === "full" ? 0.95 : 0.78,
+    };
+    if (preset.btnStyle === "OUTLINE") {
+      base.backgroundColor = "transparent";
+      base.border = `1.5px solid ${preset.btnColor}`;
+    } else if (preset.btnStyle === "SHADOW") {
+      base.backgroundColor = preset.btnColor;
+      base.border = "1.5px solid #000000";
+      base.boxShadow = "2px 2px 0px #000000";
+    } else if (preset.btnStyle === "GLASS") {
+      base.backgroundColor = "rgba(255, 255, 255, 0.22)";
+      base.border = "1px solid rgba(255, 255, 255, 0.4)";
+    } else {
+      base.backgroundColor = preset.btnColor;
+      base.border = isLight && isPillLight ? "1px solid rgba(0, 0, 0, 0.15)" : undefined;
+    }
+    return base;
+  };
 
   return (
     <button
@@ -45,9 +78,7 @@ export function ThemePresetCard({
           ? "border border-zinc-300 hover:border-zinc-500 shadow-xs"
           : "border border-zinc-800 hover:border-zinc-600 bg-zinc-900/60"
       }`}
-      style={{
-        background: preset.bgValue,
-      }}
+      style={cardBackgroundStyle}
     >
       {/* Top Bar with Selection Dot */}
       <div className="flex justify-between items-start w-full">
@@ -81,21 +112,11 @@ export function ThemePresetCard({
       <div className="space-y-1.5 w-full my-auto">
         <div
           className="w-full h-2.5 transition-all shadow-xs"
-          style={{
-            backgroundColor: preset.btnColor,
-            borderRadius: `${Math.min(preset.btnRadius, 9999)}px`,
-            opacity: 0.95,
-            border: isLight && isPillLight ? "1px solid rgba(0, 0, 0, 0.15)" : undefined,
-          }}
+          style={getMiniPillStyle("full")}
         />
         <div
           className="w-3/4 h-2.5 transition-all shadow-xs"
-          style={{
-            backgroundColor: preset.btnColor,
-            borderRadius: `${Math.min(preset.btnRadius, 9999)}px`,
-            opacity: 0.75,
-            border: isLight && isPillLight ? "1px solid rgba(0, 0, 0, 0.15)" : undefined,
-          }}
+          style={getMiniPillStyle("partial")}
         />
       </div>
 

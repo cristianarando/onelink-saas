@@ -44,6 +44,7 @@ enum LinkType {
   DIVIDER
   DONATION
   NOTE
+  EMBED
 }
 
 enum BgType {
@@ -57,6 +58,7 @@ enum BtnStyle {
   OUTLINE
   SHADOW
   ROUNDED
+  GLASS
 }
 
 enum SocialPlatform {
@@ -114,6 +116,7 @@ model Profile {
   seoDesc      String?   @map("seo_description") @db.VarChar(160)
   ogImageUrl   String?   @map("og_image_url")
   searchIndexing Boolean   @default(true) @map("search_indexing")
+  vcardEnabled   Boolean   @default(true) @map("vcard_enabled")
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
@@ -146,6 +149,7 @@ model Link {
   password            String?      @db.VarChar(100)
   isAgeRestricted     Boolean      @default(false) @map("is_age_restricted")
   badge               String?      @db.VarChar(50)
+  isFeatured          Boolean      @default(false) @map("is_featured")
   createdAt           DateTime     @default(now()) @map("created_at")
   updatedAt     DateTime     @updatedAt @map("updated_at")
 

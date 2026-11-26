@@ -22,9 +22,9 @@ import { isLightColor, resolveThemeFontFamily } from "@/lib/theme-contrast";
 import { QrCodeModal } from "./QrCodeModal";
 
 export interface PhonePreviewTheme {
-  bgType?: "SOLID" | "GRADIENT" | string;
+  bgType?: "SOLID" | "GRADIENT" | "IMAGE" | string;
   bgValue?: string;
-  btnStyle?: "FILLED" | "OUTLINE" | "SHADOW" | "ROUNDED" | string;
+  btnStyle?: "FILLED" | "OUTLINE" | "SHADOW" | "ROUNDED" | "GLASS" | string;
   btnColor?: string;
   btnTextColor?: string;
   textColor?: string;
@@ -107,18 +107,31 @@ export function PhonePreview({
     return renderLinkIcon(thumbnailUrl, url, "w-3.5 h-3.5 text-zinc-300");
   };
 
+  const isImage =
+    theme?.bgType === "IMAGE" ||
+    Boolean(theme?.bgValue && (theme.bgValue.startsWith("http://") || theme.bgValue.startsWith("https://")));
   const isGradient =
-    theme?.bgType === "GRADIENT" ||
-    (Boolean(theme?.bgValue) && theme!.bgValue!.includes("gradient"));
-  const screenBgStyle: React.CSSProperties = isGradient
-    ? { backgroundImage: theme?.bgValue, backgroundColor: "#09090b" }
-    : { backgroundColor: theme?.bgValue || "#0e0e10" };
+    !isImage &&
+    (theme?.bgType === "GRADIENT" ||
+      (Boolean(theme?.bgValue) && theme!.bgValue!.includes("gradient")));
+  const screenBgStyle: React.CSSProperties = isImage
+    ? {
+        backgroundImage: `linear-gradient(180deg, rgba(9,9,11,0.52) 0%, rgba(9,9,11,0.78) 100%), url("${(theme?.bgValue || "").replace(/"/g, "%22")}")`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundColor: "#09090b",
+      }
+    : isGradient
+      ? { backgroundImage: theme?.bgValue, backgroundColor: "#09090b" }
+      : { backgroundColor: theme?.bgValue || "#0e0e10" };
   const previewTextColor = theme?.textColor || "#fafafa";
   const previewFont = resolveThemeFontFamily(theme?.fontFamily);
 
-  const isPageLight = isLightColor(theme?.bgValue);
+  const isPageLight = isImage ? false : isLightColor(theme?.bgValue);
   const isEffectiveBtnLight =
-    theme?.btnStyle === "OUTLINE" ? isPageLight : isLightColor(theme?.btnColor);
+    theme?.btnStyle === "OUTLINE" || theme?.btnStyle === "GLASS"
+      ? isPageLight
+      : isLightColor(theme?.btnColor);
 
   const getButtonInlineStyle = (): React.CSSProperties => {
     const radius = typeof theme?.btnRadius === "number" ? theme.btnRadius : 9999;
@@ -131,7 +144,13 @@ export function PhonePreview({
       color: btnTextColor,
     };
 
-    if (btnStyle === "FILLED" || btnStyle === "ROUNDED") {
+    if (btnStyle === "GLASS") {
+      base.backgroundColor = btnColor.startsWith("rgba") ? btnColor : "rgba(255, 255, 255, 0.14)";
+      base.border = isPageLight ? "1px solid rgba(0, 0, 0, 0.15)" : "1px solid rgba(255, 255, 255, 0.24)";
+      base.backdropFilter = "blur(14px)";
+      base.WebkitBackdropFilter = "blur(14px)";
+      base.boxShadow = "0 6px 18px rgba(0, 0, 0, 0.18)";
+    } else if (btnStyle === "FILLED" || btnStyle === "ROUNDED") {
       base.backgroundColor = btnColor;
       base.border =
         isEffectiveBtnLight && isPageLight

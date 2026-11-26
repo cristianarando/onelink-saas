@@ -12,9 +12,13 @@ interface TypographySelectorProps {
 
 const FONTS = [
   { id: "Geist", label: "Geist (Clean Architectural)" },
+  { id: "Outfit", label: "Outfit (Geometric Modern)" },
+  { id: "Playfair Display", label: "Playfair Display (Luxury Editorial Serif)" },
+  { id: "DM Sans", label: "DM Sans (Clean Humanist)" },
   { id: "Space Grotesk", label: "Space Grotesk (Tech Editorial)" },
   { id: "Plus Jakarta Sans", label: "Plus Jakarta Sans (Modern Brand)" },
   { id: "Inter", label: "Inter (Minimalist Neo-grotesque)" },
+  { id: "Fira Code", label: "Fira Code (Developer Monospace)" },
   { id: "JetBrains Mono", label: "JetBrains Mono (Technical)" },
   { id: "Merriweather", label: "Merriweather (Classic Editorial Serif)" },
 ];

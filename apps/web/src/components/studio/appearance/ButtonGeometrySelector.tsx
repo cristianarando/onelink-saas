@@ -1,15 +1,23 @@
 "use client";
 
 import React from "react";
-import { Check, Shapes } from "lucide-react";
+import { Check, Shapes, ShieldCheck, Wand2 } from "lucide-react";
+import {
+  getContrastRatio,
+  getWcagBadge,
+  suggestAccessibleTextColor,
+} from "@/lib/theme-contrast";
+
+export type ButtonSurfaceStyle = "FILLED" | "OUTLINE" | "SHADOW" | "ROUNDED" | "GLASS";
 
 interface ButtonGeometrySelectorProps {
   btnRadius: number;
-  btnStyle: "FILLED" | "OUTLINE" | "SHADOW" | "ROUNDED";
+  btnStyle: ButtonSurfaceStyle;
   btnColor: string;
   btnTextColor: string;
+  pageBgColor?: string;
   onChangeRadius: (radius: number) => void;
-  onChangeStyle: (style: "FILLED" | "OUTLINE" | "SHADOW" | "ROUNDED") => void;
+  onChangeStyle: (style: ButtonSurfaceStyle) => void;
   onChangeColor: (color: string) => void;
   onChangeTextColor: (textColor: string) => void;
 }
@@ -25,7 +33,8 @@ const STYLE_OPTIONS = [
   { label: "Solid Fill", style: "FILLED" as const },
   { label: "Outline", style: "OUTLINE" as const },
   { label: "Hard Shadow", style: "SHADOW" as const },
-  { label: "Glass Soft", style: "ROUNDED" as const },
+  { label: "Soft Pill", style: "ROUNDED" as const },
+  { label: "Frosted Glass", style: "GLASS" as const },
 ];
 
 const COLOR_PRESETS = [
@@ -44,23 +53,75 @@ export function ButtonGeometrySelector({
   btnStyle,
   btnColor,
   btnTextColor,
+  pageBgColor = "#09090b",
   onChangeRadius,
   onChangeStyle,
   onChangeColor,
   onChangeTextColor,
 }: ButtonGeometrySelectorProps) {
+  const effectiveSurface =
+    btnStyle === "OUTLINE"
+      ? pageBgColor
+      : btnStyle === "GLASS"
+        ? btnColor.startsWith("rgba")
+          ? btnColor
+          : "rgba(255, 255, 255, 0.14)"
+        : btnColor;
+  const effectiveFg = btnStyle === "OUTLINE" ? btnColor : btnTextColor;
+  const contrastRatio = getContrastRatio(effectiveFg, effectiveSurface, pageBgColor);
+  const wcag = getWcagBadge(contrastRatio);
+
+  const handleAutoFixContrast = () => {
+    const targetSurface =
+      btnStyle === "OUTLINE"
+        ? pageBgColor
+        : btnStyle === "GLASS"
+          ? "rgba(255, 255, 255, 0.14)"
+          : btnColor;
+    const suggested = suggestAccessibleTextColor(targetSurface, pageBgColor);
+    if (btnStyle === "OUTLINE") {
+      onChangeColor(suggested);
+    }
+    onChangeTextColor(suggested);
+  };
+
   return (
     <section className="space-y-6 bg-zinc-900/60 rounded-2xl p-6 border border-white/5 select-none">
-      <div className="flex items-center justify-between border-b border-white/5 pb-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/5 pb-3.5">
         <div className="flex items-center space-x-2">
           <Shapes className="w-4 h-4 text-white" />
           <h2 className="text-base font-semibold text-white tracking-tight">
             Button Geometry &amp; Styles
           </h2>
         </div>
-        <span className="text-[11px] font-mono uppercase text-zinc-400">
-          INTERACTIVE SLICES
-        </span>
+        <div className="flex items-center gap-2">
+          <span
+            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold border ${
+              wcag.label === "AAA"
+                ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-300"
+                : wcag.label === "AA"
+                  ? "bg-sky-500/15 border-sky-500/30 text-sky-300"
+                  : "bg-amber-500/15 border-amber-500/30 text-amber-300"
+            }`}
+            title="Live WCAG 2.1 contrast check between button text and surface"
+          >
+            <ShieldCheck className="w-3 h-3" />
+            <span>
+              WCAG {wcag.label} ({wcag.ratioText})
+            </span>
+          </span>
+          {!wcag.pass && (
+            <button
+              type="button"
+              onClick={handleAutoFixContrast}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white text-zinc-950 hover:bg-zinc-200 text-[10px] font-semibold transition-all cursor-pointer active:scale-95"
+              title="Automatically select accessible high-contrast button text color"
+            >
+              <Wand2 className="w-2.5 h-2.5" />
+              <span>Auto-fix</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Corner Radius */}
@@ -68,7 +129,7 @@ export function ButtonGeometrySelector({
         <label className="text-xs font-mono uppercase text-zinc-400">
           Corner Radius
         </label>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
           {RADIUS_OPTIONS.map((opt) => {
             const isSelected =
               opt.radius === 9999
@@ -110,7 +171,7 @@ export function ButtonGeometrySelector({
         <label className="text-xs font-mono uppercase text-zinc-400">
           Surface &amp; Material Style
         </label>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
           {STYLE_OPTIONS.map((opt) => {
             const isSelected = btnStyle === opt.style;
             return (
@@ -157,7 +218,7 @@ export function ButtonGeometrySelector({
             </div>
             <input
               type="color"
-              value={btnColor}
+              value={btnColor.startsWith("#") ? btnColor : "#18181b"}
               onChange={(e) => onChangeColor(e.target.value)}
               className="w-7 h-7 rounded-lg bg-transparent cursor-pointer border border-white/10"
               title="Custom Button Color"

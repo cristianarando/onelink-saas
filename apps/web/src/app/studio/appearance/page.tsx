@@ -16,10 +16,14 @@ import {
   Eye,
 } from "lucide-react";
 import { ThemePreset, ThemePresetCard } from "@/components/studio/appearance/ThemePresetCard";
-import { ButtonGeometrySelector } from "@/components/studio/appearance/ButtonGeometrySelector";
+import {
+  ButtonGeometrySelector,
+  type ButtonSurfaceStyle,
+} from "@/components/studio/appearance/ButtonGeometrySelector";
 import { TypographySelector } from "@/components/studio/appearance/TypographySelector";
 import { PhonePreview } from "@/components/studio/PhonePreview";
 import { StudioLinkItem } from "@/components/studio/LinkCard";
+import { CANONICAL_THEME_PRESETS } from "@repo/shared";
 import {
   fetchProfile,
   fetchCurrentUser,
@@ -65,102 +69,38 @@ const PRESET_AVATARS = [
   },
 ];
 
-const THEME_PRESETS: ThemePreset[] = [
+const THEME_PRESETS: ThemePreset[] = CANONICAL_THEME_PRESETS;
+
+const WALLPAPER_PRESETS = [
   {
-    id: "obsidian-carbon",
-    name: "Obsidian Carbon",
-    bgType: "SOLID",
-    bgValue: "#09090b",
-    btnStyle: "FILLED",
-    btnColor: "#18181b",
-    btnTextColor: "#fafafa",
-    textColor: "#fafafa",
-    btnRadius: 9999,
-    fontFamily: "Geist",
+    id: "wp-concrete",
+    label: "Architectural",
+    url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80",
   },
   {
-    id: "minimalist-paper",
-    name: "Alpine Snow",
-    bgType: "SOLID",
-    bgValue: "#f8fafc",
-    btnStyle: "FILLED",
-    btnColor: "#ffffff",
-    btnTextColor: "#0f172a",
-    textColor: "#0f172a",
-    btnRadius: 12,
-    fontFamily: "Inter",
+    id: "wp-nebula",
+    label: "Cosmic Nebula",
+    url: "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1200&auto=format&fit=crop&q=80",
   },
   {
-    id: "sunset-aurora",
-    name: "Sunset Aurora",
-    bgType: "GRADIENT",
-    bgValue: "linear-gradient(135deg, #180d24 0%, #2e0854 50%, #4a154b 100%)",
-    btnStyle: "FILLED",
-    btnColor: "#ffffff",
-    btnTextColor: "#1a0933",
-    textColor: "#ffffff",
-    btnRadius: 9999,
-    fontFamily: "Inter",
+    id: "wp-mist",
+    label: "Misty Peaks",
+    url: "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1200&auto=format&fit=crop&q=80",
   },
   {
-    id: "emerald-forest",
-    name: "Forest Emerald",
-    bgType: "GRADIENT",
-    bgValue: "linear-gradient(135deg, #022018 0%, #064e3b 100%)",
-    btnStyle: "FILLED",
-    btnColor: "#ffffff",
-    btnTextColor: "#064e3b",
-    textColor: "#ecfdf5",
-    btnRadius: 12,
-    fontFamily: "Inter",
+    id: "wp-cyber",
+    label: "Cyber Grid",
+    url: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=1200&auto=format&fit=crop&q=80",
   },
   {
-    id: "midnight-ocean",
-    name: "Midnight Ocean",
-    bgType: "GRADIENT",
-    bgValue: "linear-gradient(135deg, #090d16 0%, #0f172a 100%)",
-    btnStyle: "FILLED",
-    btnColor: "#1e293b",
-    btnTextColor: "#38bdf8",
-    textColor: "#f8fafc",
-    btnRadius: 12,
-    fontFamily: "Inter",
+    id: "wp-dunes",
+    label: "Warm Dunes",
+    url: "https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=1200&auto=format&fit=crop&q=80",
   },
   {
-    id: "cyberpunk-neon",
-    name: "Cyberpunk Neon",
-    bgType: "GRADIENT",
-    bgValue: "linear-gradient(135deg, #09090b 0%, #020617 100%)",
-    btnStyle: "OUTLINE",
-    btnColor: "#06b6d4",
-    btnTextColor: "#22d3ee",
-    textColor: "#f8fafc",
-    btnRadius: 8,
-    fontFamily: "Space Grotesk",
-  },
-  {
-    id: "bento-linen",
-    name: "Bento Linen",
-    bgType: "SOLID",
-    bgValue: "#faf8f5",
-    btnStyle: "FILLED",
-    btnColor: "#1c1917",
-    btnTextColor: "#faf8f5",
-    textColor: "#1c1917",
-    btnRadius: 16,
-    fontFamily: "Inter",
-  },
-  {
-    id: "solar-gold",
-    name: "Solar Gold",
-    bgType: "SOLID",
-    bgValue: "#0c0a09",
-    btnStyle: "FILLED",
-    btnColor: "#eab308",
-    btnTextColor: "#000000",
-    textColor: "#fef08a",
-    btnRadius: 9999,
-    fontFamily: "Space Grotesk",
+    id: "wp-ocean",
+    label: "Deep Ocean",
+    url: "https://images.unsplash.com/photo-1505118380757-91f5f5632de0?w=1200&auto=format&fit=crop&q=80",
   },
 ];
 
@@ -174,7 +114,7 @@ function findMatchingPreset(themeData: {
   const btn = (themeData.btnColor || "").toLowerCase().trim();
   const name = (themeData.name || "").toLowerCase().trim();
 
-  // 1. Database preset name match (when loading from default seed Theme)
+  // 1. Canonical database preset name match
   if (name === "minimal dark" || name === "obsidian carbon") {
     return THEME_PRESETS.find((p) => p.id === "obsidian-carbon");
   }
@@ -187,18 +127,11 @@ function findMatchingPreset(themeData: {
   if (name === "forest emerald" || name === "emerald forest") {
     return THEME_PRESETS.find((p) => p.id === "emerald-forest");
   }
-  if (name === "midnight ocean") {
-    return THEME_PRESETS.find((p) => p.id === "midnight-ocean");
-  }
   if (name === "cyberpunk neon" || name === "cyberpunk glow") {
     return THEME_PRESETS.find((p) => p.id === "cyberpunk-neon");
   }
-  if (name === "bento linen") {
-    return THEME_PRESETS.find((p) => p.id === "bento-linen");
-  }
-  if (name === "solar gold") {
-    return THEME_PRESETS.find((p) => p.id === "solar-gold");
-  }
+  const byName = THEME_PRESETS.find((p) => p.name.toLowerCase() === name);
+  if (byName) return byName;
 
   // 2. Exact match against THEME_PRESETS
   for (const preset of THEME_PRESETS) {
@@ -207,24 +140,12 @@ function findMatchingPreset(themeData: {
     }
   }
 
-  // 3. Known color & theme equivalencies
+  // 3. Known legacy color equivalencies
   if (bg === "#09090b" && (btn === "#27272a" || btn === "#18181b")) {
     return THEME_PRESETS.find((p) => p.id === "obsidian-carbon");
   }
   if ((bg === "#f4f4f5" || bg === "#fafafa" || bg === "#f8fafc") && (btn === "#ffffff" || btn === "#18181b")) {
     return THEME_PRESETS.find((p) => p.id === "minimalist-paper");
-  }
-  // Emerald Forest: gradient or solid #064e3b with #10b981 or #047857
-  if ((bg.includes("#064e3b") || bg === "#064e3b") && (btn === "#10b981" || btn === "#047857")) {
-    return THEME_PRESETS.find((p) => p.id === "emerald-forest");
-  }
-  // Sakura Pastel: gradient with #fda4af
-  if (bg.includes("#1f1a1d") && btn === "#fda4af") {
-    return THEME_PRESETS.find((p) => p.id === "sakura-pastel");
-  }
-  // Cyberpunk Glow: gradient with #06b6d4
-  if (bg.includes("#0b0f19") && btn === "#06b6d4") {
-    return THEME_PRESETS.find((p) => p.id === "cyberpunk-glow");
   }
 
   return undefined;
@@ -245,10 +166,10 @@ export default function StudioAppearancePage() {
   const [customAvatarInput, setCustomAvatarInput] = useState<string>("");
 
   const [selectedThemeId, setSelectedThemeId] = useState<string>("obsidian-carbon");
-  const [bgType, setBgType] = useState<"SOLID" | "GRADIENT">("SOLID");
+  const [bgType, setBgType] = useState<"SOLID" | "GRADIENT" | "IMAGE">("SOLID");
   const [bgValue, setBgValue] = useState<string>("#09090b");
   const [btnRadius, setBtnRadius] = useState<number>(9999);
-  const [btnStyle, setBtnStyle] = useState<"FILLED" | "OUTLINE" | "SHADOW" | "ROUNDED">("FILLED");
+  const [btnStyle, setBtnStyle] = useState<ButtonSurfaceStyle>("FILLED");
   const [btnColor, setBtnColor] = useState<string>("#18181b");
   const [btnTextColor, setBtnTextColor] = useState<string>("#fafafa");
   const [textColor, setTextColor] = useState<string>("#fafafa");
@@ -402,10 +323,14 @@ export default function StudioAppearancePage() {
 
           const activeThemeData = p.customTheme || p.theme;
           if (activeThemeData) {
-            setBgType(activeThemeData.bgType === "GRADIENT" ? "GRADIENT" : "SOLID");
+            setBgType(
+              activeThemeData.bgType === "GRADIENT" || activeThemeData.bgType === "IMAGE"
+                ? activeThemeData.bgType
+                : "SOLID"
+            );
             setBgValue(activeThemeData.bgValue || "#09090b");
             setBtnRadius(typeof activeThemeData.btnRadius === "number" ? activeThemeData.btnRadius : 9999);
-            setBtnStyle((activeThemeData.btnStyle || "FILLED") as "FILLED" | "OUTLINE" | "SHADOW" | "ROUNDED");
+            setBtnStyle((activeThemeData.btnStyle || "FILLED") as ButtonSurfaceStyle);
             setBtnColor(activeThemeData.btnColor || "#18181b");
             setBtnTextColor(activeThemeData.btnTextColor || "#fafafa");
             setTextColor(activeThemeData.textColor || "#fafafa");
@@ -518,7 +443,7 @@ export default function StudioAppearancePage() {
     }
   };
 
-  const handleCustomBgChange = (newBg: string, type: "SOLID" | "GRADIENT") => {
+  const handleCustomBgChange = (newBg: string, type: "SOLID" | "GRADIENT" | "IMAGE") => {
     setBgType(type);
     setBgValue(newBg);
     setIsCustomMode(true);
@@ -897,7 +822,7 @@ export default function StudioAppearancePage() {
               </h2>
             </div>
             <span className="text-[11px] font-mono uppercase text-zinc-400">
-              8 PRESETS + CUSTOM
+              {THEME_PRESETS.length} PRESETS + CUSTOM
             </span>
           </div>
 
@@ -937,18 +862,18 @@ export default function StudioAppearancePage() {
           {/* Custom Theme Editor Drawer when in custom mode */}
           {isCustomMode && (
             <div className="mt-4 p-4 rounded-xl bg-zinc-900 border border-white/10 space-y-4 animate-in fade-in">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs font-mono font-semibold text-white">
                   CUSTOM BACKGROUND STYLING
                 </span>
-                <div className="flex items-center space-x-2 text-xs">
+                <div className="flex items-center space-x-1.5 text-xs">
                   <button
                     type="button"
                     onClick={() => {
                       setBgType("SOLID");
-                      setBgValue("#09090b");
+                      if (!bgValue.startsWith("#")) setBgValue("#09090b");
                     }}
-                    className={`px-2.5 py-1 rounded-full ${
+                    className={`px-2.5 py-1 rounded-full cursor-pointer transition-colors ${
                       bgType === "SOLID"
                         ? "bg-white text-black font-semibold"
                         : "text-zinc-400 hover:text-white"
@@ -960,9 +885,11 @@ export default function StudioAppearancePage() {
                     type="button"
                     onClick={() => {
                       setBgType("GRADIENT");
-                      setBgValue("linear-gradient(135deg, #18181b 0%, #09090b 100%)");
+                      if (!bgValue.includes("gradient")) {
+                        setBgValue("linear-gradient(135deg, #18181b 0%, #09090b 100%)");
+                      }
                     }}
-                    className={`px-2.5 py-1 rounded-full ${
+                    className={`px-2.5 py-1 rounded-full cursor-pointer transition-colors ${
                       bgType === "GRADIENT"
                         ? "bg-white text-black font-semibold"
                         : "text-zinc-400 hover:text-white"
@@ -970,25 +897,121 @@ export default function StudioAppearancePage() {
                   >
                     Gradient
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBgType("IMAGE");
+                      setTextColor("#fafafa");
+                      if (!bgValue.startsWith("http")) {
+                        setBgValue(WALLPAPER_PRESETS[0].url);
+                      }
+                    }}
+                    className={`px-2.5 py-1 rounded-full cursor-pointer transition-colors ${
+                      bgType === "IMAGE"
+                        ? "bg-white text-black font-semibold"
+                        : "text-zinc-400 hover:text-white"
+                    }`}
+                  >
+                    Image URL
+                  </button>
                 </div>
               </div>
 
-              <div className="flex items-center space-x-3">
-                <label className="text-xs text-zinc-400">Background Value:</label>
+              {bgType === "IMAGE" && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-mono text-zinc-400">
+                      Zero-Storage Wallpapers (External URL + Auto Dark Scrim)
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                    {WALLPAPER_PRESETS.map((wp) => (
+                      <button
+                        key={wp.id}
+                        type="button"
+                        onClick={() => {
+                          setBgType("IMAGE");
+                          setBgValue(wp.url);
+                          setTextColor("#fafafa");
+                        }}
+                        className={`relative h-14 rounded-lg overflow-hidden border transition-all cursor-pointer group ${
+                          bgValue === wp.url
+                            ? "border-white ring-2 ring-white/40"
+                            : "border-white/10 hover:border-zinc-500"
+                        }`}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={wp.url}
+                          alt={wp.label}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        />
+                        <span className="absolute inset-x-0 bottom-0 bg-black/70 px-1 py-0.5 text-[9px] font-mono text-white truncate">
+                          {wp.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="text-xs text-zinc-400 shrink-0">
+                  {bgType === "IMAGE" ? "Wallpaper URL:" : "Background Value:"}
+                </label>
                 <input
-                  type="text"
+                  type={bgType === "IMAGE" ? "url" : "text"}
                   value={bgValue}
+                  placeholder={bgType === "IMAGE" ? "https://images.unsplash.com/..." : "#09090b"}
                   onChange={(e) => handleCustomBgChange(e.target.value, bgType)}
-                  className="flex-1 px-3 py-1.5 rounded-lg bg-zinc-950 border border-white/10 text-xs font-mono text-white"
+                  className="flex-1 min-w-44 px-3 py-1.5 rounded-lg bg-zinc-950 border border-white/10 text-xs font-mono text-white"
                 />
-                <input
-                  type="color"
-                  value={bgValue.startsWith("#") ? bgValue : "#09090b"}
-                  onChange={(e) => {
-                    handleCustomBgChange(e.target.value, "SOLID");
-                  }}
-                  className="w-8 h-8 rounded bg-transparent cursor-pointer border border-white/10"
-                />
+                {bgType !== "IMAGE" && (
+                  <input
+                    type="color"
+                    value={bgValue.startsWith("#") ? bgValue : "#09090b"}
+                    onChange={(e) => {
+                      handleCustomBgChange(e.target.value, "SOLID");
+                    }}
+                    className="w-8 h-8 rounded bg-transparent cursor-pointer border border-white/10"
+                    title="Pick solid background color"
+                  />
+                )}
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                <span className="text-xs text-zinc-400">Page Heading &amp; Bio Text Color:</span>
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => setTextColor("#fafafa")}
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-medium border cursor-pointer ${
+                      textColor.toLowerCase() === "#fafafa" || textColor.toLowerCase() === "#ffffff"
+                        ? "bg-white text-black border-white"
+                        : "bg-zinc-950 text-zinc-300 border-white/10"
+                    }`}
+                  >
+                    Light
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTextColor("#09090b")}
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-medium border cursor-pointer ${
+                      textColor.toLowerCase() === "#09090b" || textColor.toLowerCase() === "#0f172a"
+                        ? "bg-white text-black border-white"
+                        : "bg-zinc-950 text-zinc-300 border-white/10"
+                    }`}
+                  >
+                    Dark
+                  </button>
+                  <input
+                    type="color"
+                    value={textColor.startsWith("#") ? textColor : "#fafafa"}
+                    onChange={(e) => setTextColor(e.target.value)}
+                    className="w-7 h-7 rounded bg-transparent cursor-pointer border border-white/10"
+                    title="Custom Page Text Color"
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -1000,6 +1023,7 @@ export default function StudioAppearancePage() {
           btnStyle={btnStyle}
           btnColor={btnColor}
           btnTextColor={btnTextColor}
+          pageBgColor={bgValue}
           onChangeRadius={setBtnRadius}
           onChangeStyle={setBtnStyle}
           onChangeColor={handleBtnColorChange}
