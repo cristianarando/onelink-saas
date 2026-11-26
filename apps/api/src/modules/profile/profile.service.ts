@@ -16,9 +16,10 @@ import {
   CreateSocialLinkDto,
   UpdateSocialLinkDto,
   ReorderSocialItemDto,
+  ImportProfileSnapshotDto,
 } from './dto/profile.dto';
 import { RESERVED_USERNAMES, isValidWebUrl, CANONICAL_THEME_PRESETS } from '@repo/shared';
-import { SecurityFlagStatus } from '@repo/prisma';
+import { LinkType, SecurityFlagStatus } from '@repo/prisma';
 
 @Injectable()
 export class ProfileService {
@@ -699,5 +700,255 @@ export class ProfileService {
 
     await this.invalidateProfileCache(existing.username);
     return results;
+  }
+
+  /**
+   * Restores or merges an exported profile JSON snapshot after validating all URLs with Sentinel AI.
+   */
+  async importProfileSnapshot(
+    profileId: string,
+    userId: string,
+    dto: ImportProfileSnapshotDto,
+    role?: string,
+    clientIp?: string,
+  ) {
+    const existing = await this.verifyOwnership(profileId, userId, role, 'EDITOR');
+    const mode = dto.mode === 'REPLACE' ? 'REPLACE' : 'MERGE';
+
+    const ownerSubscription = await this.prisma.subscription.findFirst({
+      where: { userId: existing.userId, status: 'ACTIVE' },
+      include: { plan: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    const features = (ownerSubscription?.plan?.features as Record<string, any>) || {
+      maxLinks: 5,
+      customThemes: false,
+      scheduledLinks: false,
+      ageRestriction: false,
+    };
+    const isPrivileged = role === 'OWNER' || role === 'SUPER_ADMIN';
+    const maxLinks = isPrivileged ? 9999 : (features.maxLinks ?? 5);
+
+    const incomingLinks = Array.isArray(dto.links) ? dto.links : [];
+    const preparedLinks: Array<{
+      title: string;
+      url: string | null;
+      content: string | null;
+      type: LinkType;
+      thumbnailUrl: string | null;
+      badge: string | null;
+      isActive: boolean;
+      isFeatured: boolean;
+      startsAt: Date | null;
+      expiresAt: Date | null;
+      isAgeRestricted: boolean;
+    }> = [];
+
+    for (const raw of incomingLinks) {
+      const itemType = (Object.values(LinkType).includes(raw.type as LinkType)
+        ? raw.type
+        : LinkType.LINK) as LinkType;
+      const isOutbound =
+        itemType === LinkType.LINK || itemType === LinkType.DONATION || itemType === LinkType.EMBED;
+
+      let cleanUrl: string | null = null;
+      if (isOutbound && raw.url && raw.url !== '#') {
+        cleanUrl =
+          raw.url.startsWith('http://') || raw.url.startsWith('https://')
+            ? raw.url.trim()
+            : `https://${raw.url.trim()}`;
+        if (!isValidWebUrl(cleanUrl)) {
+          throw new BadRequestException(`Invalid URL in snapshot: ${raw.url}`);
+        }
+        const evaluation = await this.sentinelAi.evaluateUrl(cleanUrl);
+        if (evaluation.action === 'BLOCK_IMMEDIATE') {
+          await this.sentinelAi.recordSecurityFlag({
+            userId,
+            submittedUrl: cleanUrl,
+            riskScore: evaluation.riskScore,
+            threatType: evaluation.threatType!,
+            aiConfidence: evaluation.aiConfidence,
+            ipAddress: clientIp,
+            status: SecurityFlagStatus.BLOCKED_AUTO,
+            resolutionNotes: `Blocked during JSON snapshot import: ${(evaluation.signals || []).join('; ')}`,
+          });
+          throw new BadRequestException(
+            `Imported URL blocked by Sentinel AI: ${cleanUrl}`,
+          );
+        }
+      } else if (itemType !== LinkType.NOTE) {
+        cleanUrl = raw.url || '#';
+      }
+
+      const startsAt =
+        !isPrivileged && !features.scheduledLinks
+          ? null
+          : raw.startsAt && !Number.isNaN(new Date(raw.startsAt).getTime())
+            ? new Date(raw.startsAt)
+            : null;
+      const expiresAt =
+        !isPrivileged && !features.scheduledLinks
+          ? null
+          : raw.expiresAt && !Number.isNaN(new Date(raw.expiresAt).getTime())
+            ? new Date(raw.expiresAt)
+            : null;
+
+      preparedLinks.push({
+        title: raw.title.trim(),
+        url: itemType === LinkType.NOTE ? null : cleanUrl,
+        content:
+          itemType === LinkType.NOTE
+            ? raw.content || (raw.url && raw.url !== '#' ? raw.url : '')
+            : raw.content || null,
+        type: itemType,
+        thumbnailUrl: raw.thumbnailUrl || null,
+        badge: raw.badge || null,
+        isActive: raw.isActive !== false,
+        isFeatured: Boolean(raw.isFeatured),
+        startsAt,
+        expiresAt,
+        isAgeRestricted: isPrivileged || features.ageRestriction ? Boolean(raw.isAgeRestricted) : false,
+      });
+    }
+
+    const incomingSocials = Array.isArray(dto.socialLinks) ? dto.socialLinks : [];
+    const preparedSocials: Array<{
+      platform: any;
+      url: string;
+      isActive: boolean;
+    }> = [];
+    for (const social of incomingSocials) {
+      const normalized = await this.validateAndNormalizeSocialUrl(
+        social.platform,
+        social.url,
+        userId,
+        clientIp,
+      );
+      preparedSocials.push({
+        platform: social.platform,
+        url: normalized,
+        isActive: social.isActive !== false,
+      });
+    }
+
+    // Update profile metadata if present
+    await this.prisma.profile.update({
+      where: { id: profileId },
+      data: {
+        title: dto.title !== undefined ? dto.title : undefined,
+        bio: dto.bio !== undefined ? dto.bio : undefined,
+        seoTitle: dto.seoTitle !== undefined ? dto.seoTitle : undefined,
+        seoDesc: dto.seoDesc !== undefined ? dto.seoDesc : undefined,
+        searchIndexing: dto.searchIndexing !== undefined ? dto.searchIndexing : undefined,
+        vcardEnabled: dto.vcardEnabled !== undefined ? dto.vcardEnabled : undefined,
+      },
+    });
+
+    if (dto.customTheme) {
+      await this.upsertCustomTheme(profileId, userId, dto.customTheme, role).catch(() => {});
+    }
+
+    let importedLinks = 0;
+    if (preparedLinks.length > 0 || mode === 'REPLACE') {
+      if (mode === 'REPLACE') {
+        await this.prisma.link.deleteMany({ where: { profileId } });
+        let destCount = 0;
+        for (let idx = 0; idx < preparedLinks.length; idx++) {
+          const item = preparedLinks[idx];
+          const countsTowardQuota =
+            item.type === LinkType.LINK ||
+            item.type === LinkType.DONATION ||
+            item.type === LinkType.EMBED;
+          if (countsTowardQuota && destCount >= maxLinks) {
+            continue;
+          }
+          await this.prisma.link.create({
+            data: { profileId, position: idx, ...item },
+          });
+          if (countsTowardQuota) destCount += 1;
+          importedLinks += 1;
+        }
+      } else {
+        const currentLinks = await this.prisma.link.findMany({
+          where: { profileId },
+          orderBy: { position: 'asc' },
+          select: { title: true, url: true, type: true, position: true },
+        });
+        const existingKeys = new Set(
+          currentLinks.map((l) => `${l.type}|${l.title.toLowerCase()}|${l.url || ''}`),
+        );
+        let destCount = currentLinks.filter(
+          (l) =>
+            l.type === LinkType.LINK ||
+            l.type === LinkType.DONATION ||
+            l.type === LinkType.EMBED,
+        ).length;
+        let nextPos =
+          currentLinks.length > 0
+            ? Math.max(...currentLinks.map((l) => l.position)) + 1
+            : 0;
+
+        for (const item of preparedLinks) {
+          const key = `${item.type}|${item.title.toLowerCase()}|${item.url || ''}`;
+          if (existingKeys.has(key)) continue;
+          const countsTowardQuota =
+            item.type === LinkType.LINK ||
+            item.type === LinkType.DONATION ||
+            item.type === LinkType.EMBED;
+          if (countsTowardQuota && destCount >= maxLinks) {
+            continue;
+          }
+          await this.prisma.link.create({
+            data: { profileId, position: nextPos++, ...item },
+          });
+          existingKeys.add(key);
+          if (countsTowardQuota) destCount += 1;
+          importedLinks += 1;
+        }
+      }
+    }
+
+    let importedSocials = 0;
+    if (preparedSocials.length > 0) {
+      if (mode === 'REPLACE') {
+        await this.prisma.socialLink.deleteMany({ where: { profileId } });
+        for (let idx = 0; idx < preparedSocials.length; idx++) {
+          await this.prisma.socialLink.create({
+            data: { profileId, position: idx, ...preparedSocials[idx] },
+          });
+          importedSocials += 1;
+        }
+      } else {
+        const currentSocials = await this.prisma.socialLink.findMany({
+          where: { profileId },
+          orderBy: { position: 'asc' },
+          select: { platform: true, url: true, position: true },
+        });
+        const existingSocialKeys = new Set(
+          currentSocials.map((s) => `${s.platform}|${s.url.toLowerCase()}`),
+        );
+        let nextPos =
+          currentSocials.length > 0
+            ? Math.max(...currentSocials.map((s) => s.position)) + 1
+            : 0;
+        for (const social of preparedSocials) {
+          const key = `${social.platform}|${social.url.toLowerCase()}`;
+          if (existingSocialKeys.has(key)) continue;
+          await this.prisma.socialLink.create({
+            data: { profileId, position: nextPos++, ...social },
+          });
+          existingSocialKeys.add(key);
+          importedSocials += 1;
+        }
+      }
+    }
+
+    await this.invalidateProfileCache(existing.username);
+    return {
+      success: true,
+      mode,
+      importedLinks,
+      importedSocials,
+    };
   }
 }

@@ -478,6 +478,65 @@ export interface AnalyticsData {
     count: number;
     percentage: number;
   }>;
+  countryBreakdown?: Array<{
+    name: string;
+    count: number;
+    percentage: number;
+  }>;
+}
+
+export interface ImportProfileSnapshotPayload {
+  mode: "MERGE" | "REPLACE";
+  title?: string | null;
+  bio?: string | null;
+  seoTitle?: string | null;
+  seoDesc?: string | null;
+  searchIndexing?: boolean;
+  vcardEnabled?: boolean;
+  customTheme?: ApiThemeData | null;
+  links?: Array<{
+    title: string;
+    url?: string | null;
+    content?: string | null;
+    type?: "LINK" | "HEADER" | "DIVIDER" | "DONATION" | "NOTE" | "EMBED";
+    thumbnailUrl?: string | null;
+    badge?: string | null;
+    isActive?: boolean;
+    isFeatured?: boolean;
+    startsAt?: string | null;
+    expiresAt?: string | null;
+    isAgeRestricted?: boolean;
+  }>;
+  socialLinks?: Array<{
+    platform: string;
+    url: string;
+    isActive?: boolean;
+  }>;
+}
+
+export async function apiImportProfileSnapshot(
+  profileId: string,
+  payload: ImportProfileSnapshotPayload
+): Promise<{ success: boolean; mode: string; importedLinks: number; importedSocials: number }> {
+  if (!profileId || !profileId.trim()) {
+    throw new Error("Profile ID is required to import snapshot.");
+  }
+  const result = await apiFetchJson<{
+    success: boolean;
+    mode: string;
+    importedLinks: number;
+    importedSocials: number;
+  }>(
+    `/api/profiles/${profileId}/import`,
+    { method: "POST", body: payload },
+    "Failed to import profile snapshot."
+  );
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("profile_updated", { detail: payload }));
+  }
+
+  return result;
 }
 
 /**

@@ -203,6 +203,7 @@ export async function generateMetadata({
     profile.seoDesc ||
     profile.bio ||
     `Check out all links from @${cleanUsername} on OneLink.`;
+  const dynamicOgUrl = profile.ogImageUrl || `/api/og/${cleanUsername}`;
 
   return {
     title: `${pageTitle} | OneLink`,
@@ -210,15 +211,20 @@ export async function generateMetadata({
     openGraph: {
       title: pageTitle,
       description: pageDesc,
-      images:
-        profile.ogImageUrl || profile.avatarUrl
-          ? [profile.ogImageUrl || profile.avatarUrl!]
-          : undefined,
+      images: [
+        {
+          url: dynamicOgUrl,
+          width: 1200,
+          height: 630,
+          alt: `${pageTitle} — OneLink`,
+        },
+      ],
     },
     twitter: {
       card: "summary_large_image",
       title: pageTitle,
       description: pageDesc,
+      images: [dynamicOgUrl],
     },
     robots: profile.searchIndexing === false ? { index: false, follow: false } : undefined,
   };

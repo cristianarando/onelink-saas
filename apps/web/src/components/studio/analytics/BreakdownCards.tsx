@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Monitor, Smartphone, Tablet, Globe, Compass, Share2 } from "lucide-react";
+import { Monitor, Smartphone, Tablet, Globe, Compass, Share2, MapPin } from "lucide-react";
 
 interface BreakdownItem {
   name: string;
@@ -13,12 +13,32 @@ interface BreakdownCardsProps {
   trafficSources: BreakdownItem[];
   deviceBreakdown: BreakdownItem[];
   osBreakdown: BreakdownItem[];
+  countryBreakdown?: BreakdownItem[];
+}
+
+function isoToFlagEmoji(code: string): string {
+  const upper = code.trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(upper)) return "🌍";
+  const base = 0x1f1e6 - 65;
+  return String.fromCodePoint(base + upper.charCodeAt(0), base + upper.charCodeAt(1));
+}
+
+function formatCountryLabel(code: string): string {
+  const upper = code.trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(upper)) return code;
+  try {
+    const names = new Intl.DisplayNames(["en"], { type: "region" });
+    return names.of(upper) || upper;
+  } catch {
+    return upper;
+  }
 }
 
 export function BreakdownCards({
   trafficSources,
   deviceBreakdown,
   osBreakdown,
+  countryBreakdown = [],
 }: BreakdownCardsProps) {
   const getDeviceIcon = (name: string) => {
     const lower = name.toLowerCase();
@@ -49,7 +69,7 @@ export function BreakdownCards({
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
       {/* 1. Traffic Sources */}
       <div className="bg-[#121215] rounded-xl border border-white/5 p-5 flex flex-col justify-between">
         <div>
@@ -166,6 +186,48 @@ export function BreakdownCards({
             ) : (
               <div className="text-center py-6 text-zinc-500 text-xs">
                 No OS telemetry recorded.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 4. Top Countries (Edge Geo-Telemetry) */}
+      <div className="bg-[#121215] rounded-xl border border-white/5 p-5 flex flex-col justify-between">
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-sm font-semibold text-white">Top Countries</h3>
+            <span className="text-xs text-zinc-500">Edge Geo</span>
+          </div>
+          <p className="text-xs text-zinc-400 mb-4">
+            Visitor regions via edge headers
+          </p>
+
+          <div className="space-y-3">
+            {countryBreakdown && countryBreakdown.length > 0 ? (
+              countryBreakdown.map((item) => (
+                <div key={item.name} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center space-x-2 text-zinc-200 truncate pr-2">
+                      <span>{isoToFlagEmoji(item.name)}</span>
+                      <span className="font-medium truncate">{formatCountryLabel(item.name)}</span>
+                    </span>
+                    <span className="text-zinc-400 font-mono shrink-0">
+                      {item.count.toLocaleString()} ({item.percentage}%)
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full bg-white/5 overflow-hidden">
+                    <div
+                      className="h-full bg-sky-500/80 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.max(item.percentage, 3)}%` }}
+                    />
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-6 text-zinc-500 text-xs flex flex-col items-center gap-1.5">
+                <MapPin className="w-4 h-4 text-zinc-600" />
+                <span>Country telemetry activates automatically in production edge traffic.</span>
               </div>
             )}
           </div>

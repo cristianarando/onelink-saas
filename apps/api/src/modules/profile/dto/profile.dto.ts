@@ -95,3 +95,51 @@ export class ReorderSocialLinksDto {
   @ApiProperty({ type: [ReorderSocialItemDto] })
   items!: ReorderSocialItemDto[];
 }
+
+export class ImportProfileSnapshotDto {
+  @ApiPropertyOptional({ enum: ['MERGE', 'REPLACE'], default: 'MERGE' })
+  mode!: 'MERGE' | 'REPLACE';
+
+  @ApiPropertyOptional()
+  title?: string | null;
+
+  @ApiPropertyOptional()
+  bio?: string | null;
+
+  @ApiPropertyOptional()
+  seoTitle?: string | null;
+
+  @ApiPropertyOptional()
+  seoDesc?: string | null;
+
+  @ApiPropertyOptional()
+  searchIndexing?: boolean;
+
+  @ApiPropertyOptional()
+  vcardEnabled?: boolean;
+
+  @ApiPropertyOptional({ type: UpdateCustomThemeDto })
+  customTheme?: UpdateCustomThemeDto | null;
+
+  @ApiPropertyOptional({ type: [Object] })
+  links?: Array<{
+    title: string;
+    url?: string | null;
+    content?: string | null;
+    type?: string;
+    thumbnailUrl?: string | null;
+    badge?: string | null;
+    isActive?: boolean;
+    isFeatured?: boolean;
+    startsAt?: string | null;
+    expiresAt?: string | null;
+    isAgeRestricted?: boolean;
+  }>;
+
+  @ApiPropertyOptional({ type: [Object] })
+  socialLinks?: Array<{
+    platform: SocialPlatform;
+    url: string;
+    isActive?: boolean;
+  }>;
+}

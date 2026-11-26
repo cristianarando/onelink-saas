@@ -20,6 +20,7 @@ import {
   CreateSocialLinkSchema,
   UpdateSocialLinkSchema,
   ReorderSocialLinksSchema,
+  ImportProfileSnapshotSchema,
 } from '@repo/shared';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -31,6 +32,7 @@ import {
   CreateSocialLinkDto,
   UpdateSocialLinkDto,
   ReorderSocialLinksDto,
+  ImportProfileSnapshotDto,
 } from './dto/profile.dto';
 
 @ApiTags('Profiles & Themes')
@@ -110,6 +112,22 @@ export class ProfileController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return await this.profileService.deleteCustomTheme(id, user.id, user.role);
+  }
+
+  @Post(':id/import')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @UsePipes(new ZodValidationPipe(ImportProfileSnapshotSchema))
+  @ApiOperation({ summary: 'Restore or merge a creator profile JSON backup snapshot' })
+  @ApiResponse({ status: 201, description: 'Snapshot imported and Sentinel AI verified' })
+  async importProfileSnapshot(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ImportProfileSnapshotDto,
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: Request,
+  ) {
+    const clientIp = req.ip || req.socket.remoteAddress;
+    return await this.profileService.importProfileSnapshot(id, user.id, dto, user.role, clientIp);
   }
 
   // ==========================================================================

@@ -23,6 +23,17 @@ import { TrackClickDto, TrackPageViewDto } from './dto/analytics.dto';
 export class TrackController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
+  private extractCountryCode(req: Request): string | undefined {
+    const raw =
+      (req.headers['x-vercel-ip-country'] as string) ||
+      (req.headers['cf-ipcountry'] as string) ||
+      (req.headers['x-country-code'] as string);
+    if (!raw || typeof raw !== 'string') return undefined;
+    const code = raw.split(',')[0].trim().toUpperCase();
+    if (!/^[A-Z]{2}$/.test(code) || code === 'XX' || code === 'T1') return undefined;
+    return code;
+  }
+
   @Post('click')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UsePipes(new ZodValidationPipe(TrackClickSchema))
@@ -34,8 +45,9 @@ export class TrackController {
     const rawIp = (req.headers['x-forwarded-for'] as string) || req.ip || req.socket.remoteAddress;
     const clientIp = typeof rawIp === 'string' ? rawIp.split(',')[0].trim() : undefined;
     const userAgent = req.headers['user-agent'];
+    const country = this.extractCountryCode(req);
 
-    await this.analyticsService.recordClick(dto, clientIp, userAgent);
+    await this.analyticsService.recordClick(dto, clientIp, userAgent, country);
   }
 
   @Post('view')
@@ -49,7 +61,8 @@ export class TrackController {
     const rawIp = (req.headers['x-forwarded-for'] as string) || req.ip || req.socket.remoteAddress;
     const clientIp = typeof rawIp === 'string' ? rawIp.split(',')[0].trim() : undefined;
     const userAgent = req.headers['user-agent'];
+    const country = this.extractCountryCode(req);
 
-    await this.analyticsService.recordPageView(dto, clientIp, userAgent);
+    await this.analyticsService.recordPageView(dto, clientIp, userAgent, country);
   }
 }

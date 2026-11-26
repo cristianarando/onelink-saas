@@ -58,4 +58,5 @@ export interface ProfileAnalyticsResponse {
   trafficSources: CategorizedMetric[];
   deviceBreakdown: CategorizedMetric[];
   osBreakdown: CategorizedMetric[];
+  countryBreakdown: CategorizedMetric[];
 }

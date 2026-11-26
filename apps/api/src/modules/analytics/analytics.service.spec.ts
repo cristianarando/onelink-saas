@@ -49,6 +49,7 @@ describe('AnalyticsService', () => {
             referrer: 'https://instagram.com/p/123',
             device: 'mobile',
             os: 'iOS',
+            country: 'BO',
           },
         ]),
       },
@@ -114,11 +115,12 @@ describe('AnalyticsService', () => {
   });
 
   describe('recordPageView', () => {
-    it('should create an anonymized page view entry', async () => {
+    it('should create an anonymized page view entry with optional country code', async () => {
       await service.recordPageView(
         { profileId: mockProfileId, referrer: 'https://google.com' },
         '203.0.113.195',
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+        'US',
       );
 
       expect(prismaService.pageView.create).toHaveBeenCalledWith(
@@ -128,6 +130,7 @@ describe('AnalyticsService', () => {
             referrer: 'https://google.com',
             device: 'desktop',
             os: 'Windows',
+            country: 'US',
           }),
         }),
       );
@@ -178,6 +181,7 @@ describe('AnalyticsService', () => {
       expect(result.topLinks).toHaveLength(1);
       expect(result.topLinks[0].title).toBe('My Video');
       expect(result.trafficSources[0].name).toBe('Instagram');
+      expect(result.countryBreakdown).toEqual([{ name: 'BO', count: 1, percentage: 100 }]);
     });
 
     it('should exclude dividers, headers, notes, and placeholder links from topLinks and activeLinksCount', async () => {
